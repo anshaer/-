@@ -4,7 +4,7 @@
     "endDate": "2025-08-01",
     "title": "短程旅行",
     "color": "darkorange"
-  },  <-- ADD A COMMA HERE
+  },  
   {
     "startDate": "2025-08-02",
     "endDate": "2025-08-02",
