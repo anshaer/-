@@ -1,44 +1,32 @@
 [
   {
-    "startDate": "2025-07-28",
-    "endDate": "2025-07-28",
-    "title": "專案會議",
-    "color": "darkgreen"
-  },
-  {
-    "startDate": "2025-07-30",
-    "endDate": "2025-07-30",
-    "title": "提交報告",
-    "color": "#8A2BE2"
-  },
-  {
     "startDate": "2025-08-01",
-    "endDate": "2025-08-03",
+    "endDate": "2025-08-01",
     "title": "短程旅行",
+    "color": "darkorange"
+  },  <-- ADD A COMMA HERE
+  {
+    "startDate": "2025-08-02",
+    "endDate": "2025-08-02",
+    "title": "短程旅行",
+    "color": "darkorange"
+  },
+  {
+    "startDate": "2025-08-04",
+    "endDate": "2025-08-04",
+    "title": "國定假日",
     "color": "orange"
   },
   {
     "startDate": "2025-08-05",
     "endDate": "2025-08-05",
-    "title": "牙醫預約",
-    "color": "purple"
-  },
-  {
-    "startDate": "2025-08-10",
-    "endDate": "2025-08-10",
-    "title": "朋友生日",
-    "color": "pink"
+    "title": "國定假日",
+    "color": "orange"
   },
   {
     "startDate": "2025-08-15",
-    "endDate": "2025-08-17",
+    "endDate": "2025-08-16",
     "title": "長假",
     "color": "red"
-  },
-  {
-    "startDate": "2025-08-20",
-    "endDate": "2025-08-20",
-    "title": "線上課程",
-    "color": "blue"
   }
 ]
