@@ -53,7 +53,7 @@
             background-color: #fff;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            width: 300px; /* 保持卡片寬度 */
+            width: 300px; /* 桌面端預設寬度 */
             padding: 20px;
             box-sizing: border-box;
         }
@@ -84,7 +84,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            overflow: hidden; /* 保持 overflow: hidden; 以便控制整個單元格的溢出 */
+            overflow: hidden; 
         }
         .day-number {
             font-weight: bold;
@@ -93,7 +93,6 @@
             font-size: 0.9em;
         }
 
-        /* 關鍵改動：活動標籤樣式 */
         .event {
             font-size: 0.7em; /* 稍微縮小字體 */
             padding: 2px 4px; /* 內邊距，左右各4px */
@@ -176,6 +175,70 @@
             color: #444;
             white-space: pre-wrap;
         }
+
+        /* **** 響應式設計：針對小螢幕設備 (例如手機) **** */
+        @media (max-width: 768px) {
+            body {
+                margin: 10px; /* 減少整體頁面邊距 */
+            }
+            .calendar-container {
+                gap: 10px; /* 減少月份卡片之間的間距 */
+            }
+            .month-card {
+                width: 95%; /* 讓月份卡片佔據手機螢幕的更多寬度 */
+                max-width: none; /* 移除 max-width 限制，確保能伸展 */
+                margin-left: auto; /* 水平置中 */
+                margin-right: auto; /* 水平置中 */
+                padding: 15px; /* 稍微減少內邊距 */
+            }
+            .month-title {
+                font-size: 1.3em; /* 稍微縮小月份標題字體 */
+            }
+            .day-cell {
+                min-height: 70px; /* 在手機上可以稍微減少格子最小高度 */
+                padding: 5px 0; /* 調整內邊距 */
+            }
+            .day-number {
+                font-size: 0.85em; /* 稍微縮小日期數字字體 */
+            }
+            .event {
+                font-size: 0.65em; /* 手機上標籤字體再小一點 */
+                padding: 1px 3px; /* 縮小標籤內邊距 */
+                width: calc(4em + 6px); /* 4em 文字寬度 + 6px (左右padding 3px*2) */
+                min-height: 2.2em; /* 調整高度以適應縮小的字體和行高 */
+                line-height: 1.1em; /* 調整行高 */
+                max-height: 2.2em; /* 2 行 * 1.1em 行高 = 2.2em */
+            }
+            .calendar-navigation button {
+                padding: 8px 15px;
+                font-size: 0.9em;
+            }
+            .current-year-display {
+                font-size: 1.5em;
+            }
+        }
+
+        /* 針對更小的螢幕 (例如 iPhone SE 等) 可以再微調 */
+        @media (max-width: 400px) {
+            .month-card {
+                padding: 10px;
+            }
+            .day-cell {
+                min-height: 60px;
+            }
+            .day-number {
+                font-size: 0.8em;
+            }
+            .event {
+                font-size: 0.6em; /* 更小的字體 */
+                padding: 1px 2px; /* 更小的內邊距 */
+                width: calc(4em + 4px); /* 4em 文字寬度 + 4px (左右padding 2px*2) */
+                min-height: 2em;
+                line-height: 1em;
+                max-height: 2em;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -194,8 +257,8 @@
         <div class="modal-content">
             <span class="close-button">&times;</span>
             <h2 id="modalTitle" class="modal-title"></h2>
-            <p id="modalDate" id="modalDate" class="modal-date"></p>
-            <p id="modalDescription" id="modalDescription" class="modal-description"></p>
+            <p id="modalDate" class="modal-date"></p>
+            <p id="modalDescription" class="modal-description"></p>
         </div>
     </div>
 
