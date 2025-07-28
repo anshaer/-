@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>XXX 的行事曆</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/locale/zh-tw.min.js"></script>
+
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -16,7 +19,54 @@
             color: #0056b3;
             margin-bottom: 30px;
         }
-        .calendar-container {
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .controls button {
+            padding: 10px 15px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+        }
+        .controls button:hover {
+            background-color: #0056b3;
+        }
+        .controls button.active {
+            background-color: #28a745;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 10px; /* 按鈕和標題之間的間距 */
+        }
+        .calendar-header h2 {
+            font-size: 2em;
+            color: #333;
+            margin: 0;
+        }
+        .calendar-header .nav-button {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f0f0f0;
+            cursor: pointer;
+            font-size: 1.2em;
+        }
+        .calendar-header .nav-button:hover {
+            background-color: #e0e0e0;
+        }
+
+        /* Year View */
+        .year-view-container {
             display: flex;
             flex-wrap: wrap;
             gap: 15px;
@@ -30,22 +80,31 @@
             padding: 20px;
             box-sizing: border-box;
         }
-        .month-title {
+        .month-card .month-title {
             text-align: center;
-            font-size: 1.5em;
+            font-size: 1.3em; /* 稍微小一點 */
             margin-bottom: 15px;
             color: #007bff;
         }
-        .day-grid {
+
+        /* Month View & Week View */
+        .month-grid, .week-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
             gap: 5px;
             text-align: center;
+            max-width: 900px; /* 限制寬度 */
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         .day-header {
             font-weight: bold;
             color: #666;
             padding-bottom: 5px;
+            font-size: 1em;
         }
         .day-cell {
             padding: 8px 0;
@@ -58,12 +117,22 @@
             align-items: center;
             justify-content: flex-start;
             overflow: hidden; /* 防止內容溢出單元格 */
+            border: 1px solid #ddd; /* 增加邊框 */
+        }
+        .day-cell.current-month {
+            background-color: #ffffff; /* 當月日期顏色 */
+        }
+        .day-cell.today {
+            background-color: #fffacd; /* 今天特別標記 */
+            border: 2px solid #007bff;
         }
         .day-number {
             font-weight: bold;
             margin-bottom: 2px;
             color: #333;
-            font-size: 0.9em; /* 日期數字稍小一點 */
+            font-size: 0.9em;
+            align-self: flex-start; /* 讓日期數字靠左上角 */
+            padding-left: 5px;
         }
         .event {
             font-size: 0.75em;
@@ -73,12 +142,11 @@
             width: calc(100% - 8px); /* 留一點邊距 */
             color: white;
             cursor: pointer;
-            box-sizing: border-box; /* 確保 padding 不增加寬度 */
+            box-sizing: border-box;
 
-            /* 關鍵的文字溢出處理 */
-            white-space: nowrap; /* 不換行 */
-            overflow: hidden;     /* 隱藏超出部分 */
-            text-overflow: ellipsis; /* 顯示省略號 */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .event:hover {
             opacity: 0.8;
@@ -90,7 +158,7 @@
         .modal {
             display: none;
             position: fixed;
-            z-index: 1000; /* 確保在最上層 */
+            z-index: 1000;
             left: 0;
             top: 0;
             width: 100%;
@@ -144,7 +212,19 @@
 <body>
     <h1>XXX 的行事曆</h1>
 
-    <div class="calendar-container" id="calendarContainer">
+    <div class="controls">
+        <button id="viewYear" class="active">年</button>
+        <button id="viewMonth">月</button>
+        <button id="viewWeek">週</button>
+    </div>
+
+    <div class="calendar-header">
+        <button id="prevBtn" class="nav-button">&lt;</button>
+        <h2 id="calendarTitle"></h2>
+        <button id="nextBtn" class="nav-button">&gt;</button>
+    </div>
+
+    <div id="calendarContainer">
         </div>
 
     <div id="eventModal" class="modal">
@@ -157,21 +237,29 @@
     </div>
 
     <script>
+        // 設定 Moment.js 為繁體中文
+        moment.locale('zh-tw');
+
         const activitiesFile = 'activities.json'; // 你的 JSON 檔案路徑
 
-        // 預設月份名稱
-        const monthNames = [
-            "一月", "二月", "三月", "四月", "五月", "六月",
-            "七月", "八月", "九月", "十月", "十一月", "十二月"
-        ];
-        // 星期名稱
-        const dayHeaders = ["日", "一", "二", "三", "四", "五", "六"];
+        let currentView = 'year'; // 初始視圖：'year', 'month', 'week'
+        let currentDate = moment(); // 使用 Moment.js 物件，初始化為當前日期
+
+        const calendarContainer = document.getElementById('calendarContainer');
+        const calendarTitle = document.getElementById('calendarTitle');
+        const viewYearBtn = document.getElementById('viewYear');
+        const viewMonthBtn = document.getElementById('viewMonth');
+        const viewWeekBtn = document.getElementById('viewWeek');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
 
         const eventModal = document.getElementById('eventModal');
         const closeButton = document.getElementsByClassName('close-button')[0];
         const modalTitle = document.getElementById('modalTitle');
         const modalDate = document.getElementById('modalDate');
         const modalDescription = document.getElementById('modalDescription');
+
+        let allActivities = []; // 儲存所有活動資料
 
         async function fetchActivities() {
             try {
@@ -188,46 +276,64 @@
             }
         }
 
-        function renderCalendar(activities) {
-            const calendarContainer = document.getElementById('calendarContainer');
+        // --- 渲染函式 ---
+        function renderCalendar() {
             calendarContainer.innerHTML = ''; // 清空現有內容
 
-            const currentYear = new Date().getFullYear(); // 獲取當前年份
+            // 更新按鈕的 active 狀態
+            [viewYearBtn, viewMonthBtn, viewWeekBtn].forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`view${currentView.charAt(0).toUpperCase() + currentView.slice(1)}`).classList.add('active');
+
+            if (currentView === 'year') {
+                renderYearView();
+            } else if (currentView === 'month') {
+                renderMonthView();
+            } else if (currentView === 'week') {
+                renderWeekView();
+            }
+        }
+
+        function renderYearView() {
+            calendarTitle.textContent = `${currentDate.format('YYYY')} 年`;
+            calendarContainer.classList.remove('month-grid', 'week-grid');
+            calendarContainer.classList.add('year-view-container');
+            calendarContainer.innerHTML = '';
 
             for (let month = 0; month < 12; month++) {
+                const monthMoment = moment(currentDate).month(month);
                 const monthCard = document.createElement('div');
                 monthCard.classList.add('month-card');
 
-                const monthTitle = document.createElement('h2');
+                const monthTitle = document.createElement('h3'); // Use h3 for month title in year view
                 monthTitle.classList.add('month-title');
-                monthTitle.textContent = `${currentYear} 年 ${monthNames[month]}`;
+                monthTitle.textContent = monthMoment.format('MMMM'); // Ex: 七月
                 monthCard.appendChild(monthTitle);
 
                 const dayGrid = document.createElement('div');
                 dayGrid.classList.add('day-grid');
 
                 // 添加星期標頭
-                dayHeaders.forEach(header => {
+                moment.weekdaysMin(true).forEach(header => { // true for short format, starting from Sunday
                     const dayHeader = document.createElement('div');
                     dayHeader.classList.add('day-header');
                     dayHeader.textContent = header;
                     dayGrid.appendChild(dayHeader);
                 });
 
-                // 計算該月的第一天是星期幾
-                const firstDayOfMonth = new Date(currentYear, month, 1).getDay();
-
                 // 填補月初空白
+                const firstDayOfMonth = moment(monthMoment).startOf('month').day(); // 0 for Sunday, 6 for Saturday
                 for (let i = 0; i < firstDayOfMonth; i++) {
                     const emptyCell = document.createElement('div');
                     emptyCell.classList.add('day-cell');
                     dayGrid.appendChild(emptyCell);
                 }
 
-                // 獲取該月的天數
-                const daysInMonth = new Date(currentYear, month + 1, 0).getDate();
-
+                // 渲染日期和活動
+                const daysInMonth = monthMoment.daysInMonth();
                 for (let day = 1; day <= daysInMonth; day++) {
+                    const dayMoment = moment(monthMoment).date(day);
                     const dayCell = document.createElement('div');
                     dayCell.classList.add('day-cell');
 
@@ -237,30 +343,23 @@
                     dayCell.appendChild(dayNumber);
 
                     // 檢查是否有當天的活動
-                    const currentDate = new Date(currentYear, month, day);
-                    
-                    activities.forEach(activity => {
-                        const startDate = new Date(activity.開始時間);
-                        const endDate = new Date(activity.結束時間 || activity.開始時間);
+                    allActivities.forEach(activity => {
+                        const startDate = moment(activity.開始時間).startOf('day');
+                        const endDate = moment(activity.結束時間 || activity.開始時間).startOf('day');
 
-                        // 將時間部分清零，只比較日期
-                        startDate.setHours(0, 0, 0, 0);
-                        endDate.setHours(0, 0, 0, 0);
-                        currentDate.setHours(0, 0, 0, 0);
-
-                        if (currentDate >= startDate && currentDate <= endDate) {
+                        if (dayMoment.isBetween(startDate, endDate, null, '[]')) { // [] means inclusive
                             const eventDiv = document.createElement('div');
                             eventDiv.classList.add('event');
-                            
-                            // 設置文字內容
                             eventDiv.textContent = activity.名稱;
-
                             if (activity.顏色) {
                                 eventDiv.style.backgroundColor = activity.顏色;
                             } else {
                                 eventDiv.classList.add('default-color');
                             }
-                            eventDiv.addEventListener('click', () => showEventDetails(activity));
+                            eventDiv.addEventListener('click', (e) => {
+                                e.stopPropagation(); // 防止點擊事件冒泡到 dayCell
+                                showEventDetails(activity);
+                            });
                             dayCell.appendChild(eventDiv);
                         }
                     });
@@ -271,7 +370,163 @@
             }
         }
 
-        // 顯示活動詳情彈出視窗
+        function renderMonthView() {
+            calendarTitle.textContent = currentDate.format('YYYY 年 MMMM'); // Ex: 2025 年 七月
+            calendarContainer.classList.remove('year-view-container', 'week-grid');
+            calendarContainer.classList.add('month-grid');
+            calendarContainer.innerHTML = '';
+
+            const startOfMonth = moment(currentDate).startOf('month');
+            const endOfMonth = moment(currentDate).endOf('month');
+            const startDay = moment(startOfMonth).startOf('week'); // 從週日開始計算
+            const endDay = moment(endOfMonth).endOf('week');
+
+            // 添加星期標頭
+            moment.weekdaysMin(true).forEach(header => {
+                const dayHeader = document.createElement('div');
+                dayHeader.classList.add('day-header');
+                dayHeader.textContent = header;
+                calendarContainer.appendChild(dayHeader);
+            });
+
+            let day = startDay.clone();
+            const today = moment().startOf('day');
+
+            while (day.isSameOrBefore(endDay)) {
+                const dayCell = document.createElement('div');
+                dayCell.classList.add('day-cell');
+                
+                if (day.month() === currentDate.month()) {
+                    dayCell.classList.add('current-month'); // 當月日期樣式
+                } else {
+                    dayCell.style.opacity = '0.6'; // 非當月日期較淡
+                }
+                
+                if (day.isSame(today, 'day')) {
+                    dayCell.classList.add('today'); // 今天樣式
+                }
+
+                const dayNumber = document.createElement('div');
+                dayNumber.classList.add('day-number');
+                dayNumber.textContent = day.date();
+                dayCell.appendChild(dayNumber);
+
+                allActivities.forEach(activity => {
+                    const startDate = moment(activity.開始時間).startOf('day');
+                    const endDate = moment(activity.結束時間 || activity.開始時間).startOf('day');
+
+                    if (day.isBetween(startDate, endDate, null, '[]')) {
+                        const eventDiv = document.createElement('div');
+                        eventDiv.classList.add('event');
+                        eventDiv.textContent = activity.名稱;
+                        if (activity.顏色) {
+                            eventDiv.style.backgroundColor = activity.顏色;
+                        } else {
+                            eventDiv.classList.add('default-color');
+                        }
+                        eventDiv.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            showEventDetails(activity);
+                        });
+                        dayCell.appendChild(eventDiv);
+                    }
+                });
+
+                calendarContainer.appendChild(dayCell);
+                day.add(1, 'day');
+            }
+        }
+
+        function renderWeekView() {
+            const startOfWeek = moment(currentDate).startOf('week'); // 當前週的開始 (週日)
+            const endOfWeek = moment(currentDate).endOf('week'); // 當前週的結束 (週六)
+            calendarTitle.textContent = `${startOfWeek.format('YYYY/MM/DD')} - ${endOfWeek.format('MM/DD')}`;
+            
+            calendarContainer.classList.remove('year-view-container', 'month-grid');
+            calendarContainer.classList.add('week-grid');
+            calendarContainer.innerHTML = '';
+
+            // 添加星期標頭
+            moment.weekdaysMin(true).forEach(header => {
+                const dayHeader = document.createElement('div');
+                dayHeader.classList.add('day-header');
+                dayHeader.textContent = header;
+                calendarContainer.appendChild(dayHeader);
+            });
+
+            let day = startOfWeek.clone();
+            const today = moment().startOf('day');
+
+            while (day.isSameOrBefore(endOfWeek)) {
+                const dayCell = document.createElement('div');
+                dayCell.classList.add('day-cell');
+                
+                if (day.isSame(today, 'day')) {
+                    dayCell.classList.add('today');
+                }
+
+                const dayNumber = document.createElement('div');
+                dayNumber.classList.add('day-number');
+                dayNumber.textContent = day.date();
+                dayCell.appendChild(dayNumber);
+
+                allActivities.forEach(activity => {
+                    const startDate = moment(activity.開始時間).startOf('day');
+                    const endDate = moment(activity.結束時間 || activity.開始時間).startOf('day');
+
+                    if (day.isBetween(startDate, endDate, null, '[]')) {
+                        const eventDiv = document.createElement('div');
+                        eventDiv.classList.add('event');
+                        eventDiv.textContent = activity.名稱;
+                        if (activity.顏色) {
+                            eventDiv.style.backgroundColor = activity.顏色;
+                        } else {
+                            eventDiv.classList.add('default-color');
+                        }
+                        eventDiv.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            showEventDetails(activity);
+                        });
+                        dayCell.appendChild(eventDiv);
+                    }
+                });
+
+                calendarContainer.appendChild(dayCell);
+                day.add(1, 'day');
+            }
+        }
+
+        // --- 導航和視圖切換邏輯 ---
+        function navigate(direction) {
+            if (currentView === 'year') {
+                currentDate.add(direction, 'year');
+            } else if (currentView === 'month') {
+                currentDate.add(direction, 'month');
+            } else if (currentView === 'week') {
+                currentDate.add(direction, 'week');
+            }
+            renderCalendar();
+        }
+
+        viewYearBtn.addEventListener('click', () => {
+            currentView = 'year';
+            renderCalendar();
+        });
+        viewMonthBtn.addEventListener('click', () => {
+            currentView = 'month';
+            currentDate = moment(); // 切回當月
+            renderCalendar();
+        });
+        viewWeekBtn.addEventListener('click', () => {
+            currentView = 'week';
+            currentDate = moment(); // 切回當週
+            renderCalendar();
+        });
+
+        prevBtn.addEventListener('click', () => navigate(-1));
+        nextBtn.addEventListener('click', () => navigate(1));
+
+        // 顯示活動詳情彈出視窗 (與之前相同)
         function showEventDetails(activity) {
             modalTitle.textContent = activity.名稱;
             
@@ -290,17 +545,4 @@
         }
 
         // 點擊視窗外部關閉
-        window.onclick = function(event) {
-            if (event.target == eventModal) {
-                eventModal.style.display = 'none';
-            }
-        }
-
-        // 初始化
-        document.addEventListener('DOMContentLoaded', async () => {
-            const activities = await fetchActivities();
-            renderCalendar(activities);
-        });
-    </script>
-</body>
-</html>
+        window.on
