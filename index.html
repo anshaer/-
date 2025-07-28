@@ -46,7 +46,7 @@
             border-radius: 4px;
             background-color: #e9ecef;
             position: relative;
-            min-height: 40px; /* 確保有足夠空間顯示日期和活動 */
+            min-height: 40px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -66,10 +66,67 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            color: white; /* 確保事件文字是白色 */
+            color: white;
+            cursor: pointer; /* 讓活動可以點擊 */
+        }
+        .event:hover {
+            opacity: 0.8;
         }
         /* 預設事件顏色 */
         .event.default-color { background-color: #6c757d; }
+
+        /* 彈出視窗樣式 */
+        .modal {
+            display: none; /* 預設隱藏 */
+            position: fixed; /* 固定定位 */
+            z-index: 1; /* 位於最上層 */
+            left: 0;
+            top: 0;
+            width: 100%; /* 全螢幕 */
+            height: 100%; /* 全螢幕 */
+            overflow: auto; /* 如果內容過多可以滾動 */
+            background-color: rgba(0,0,0,0.4); /* 半透明背景 */
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 500px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .modal-title {
+            font-size: 1.5em;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        .modal-date {
+            font-size: 1em;
+            color: #666;
+            margin-bottom: 15px;
+        }
+        .modal-description {
+            line-height: 1.6;
+            color: #444;
+            white-space: pre-wrap; /* 保留換行 */
+        }
     </style>
 </head>
 <body>
@@ -77,6 +134,15 @@
 
     <div class="calendar-container" id="calendarContainer">
         </div>
+
+    <div id="eventModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2 id="modalTitle" class="modal-title"></h2>
+            <p id="modalDate" class="modal-date"></p>
+            <p id="modalDescription" class="modal-description"></p>
+        </div>
+    </div>
 
     <script>
         const activitiesFile = 'activities.json'; // 你的 JSON 檔案路徑
@@ -89,11 +155,16 @@
         // 星期名稱
         const dayHeaders = ["日", "一", "二", "三", "四", "五", "六"];
 
+        const eventModal = document.getElementById('eventModal');
+        const closeButton = document.getElementsByClassName('close-button')[0];
+        const modalTitle = document.getElementById('modalTitle');
+        const modalDate = document.getElementById('modalDate');
+        const modalDescription = document.getElementById('modalDescription');
+
         async function fetchActivities() {
             try {
                 const response = await fetch(activitiesFile);
                 if (!response.ok) {
-                    // 如果檔案不存在或無法讀取，返回空陣列
                     console.warn(`無法讀取 ${activitiesFile}，將以空資料顯示。`);
                     return [];
                 }
@@ -101,7 +172,7 @@
                 return data;
             } catch (error) {
                 console.error('讀取活動資料時發生錯誤:', error);
-                return []; // 發生錯誤時也返回空陣列
+                return [];
             }
         }
 
@@ -166,6 +237,8 @@
                             } else {
                                 eventDiv.classList.add('default-color'); // 使用預設顏色
                             }
+                            // 為活動添加點擊事件監聽器
+                            eventDiv.addEventListener('click', () => showEventDetails(activity));
                             dayCell.appendChild(eventDiv);
                         }
                     });
@@ -173,6 +246,26 @@
                 }
                 monthCard.appendChild(dayGrid);
                 calendarContainer.appendChild(monthCard);
+            }
+        }
+
+        // 顯示活動詳情彈出視窗
+        function showEventDetails(activity) {
+            modalTitle.textContent = activity.名稱;
+            modalDate.textContent = `日期: ${activity.時間}`;
+            modalDescription.textContent = activity.敘述 || '無詳細敘述。'; // 如果沒有敘述則顯示預設文字
+            eventModal.style.display = 'flex'; // 顯示彈出視窗
+        }
+
+        // 關閉彈出視窗
+        closeButton.onclick = function() {
+            eventModal.style.display = 'none';
+        }
+
+        // 點擊視窗外部關閉
+        window.onclick = function(event) {
+            if (event.target == eventModal) {
+                eventModal.style.display = 'none';
             }
         }
 
