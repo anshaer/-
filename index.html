@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>XXX 的行事曆</title>
     <style>
+        /* ... 你的 CSS 樣式保持不變 ... */
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
@@ -16,11 +17,11 @@
             color: #0056b3;
             margin-bottom: 30px;
         }
-        .calendar-navigation { /* 新增的樣式 */
+        .calendar-navigation {
             text-align: center;
             margin-bottom: 20px;
         }
-        .calendar-navigation button { /* 新增的樣式 */
+        .calendar-navigation button {
             padding: 10px 20px;
             font-size: 1em;
             margin: 0 10px;
@@ -31,15 +32,15 @@
             border-radius: 5px;
             transition: background-color 0.3s ease;
         }
-        .calendar-navigation button:hover { /* 新增的樣式 */
+        .calendar-navigation button:hover {
             background-color: #0056b3;
         }
-        .current-year-display { /* 新增的樣式 */
+        .current-year-display {
             font-size: 1.8em;
             font-weight: bold;
             color: #0056b3;
             margin: 0 20px;
-            vertical-align: middle; /* 讓年份文字與按鈕對齊 */
+            vertical-align: middle;
         }
 
         .calendar-container {
@@ -52,7 +53,7 @@
             background-color: #fff;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            width: 300px; /* 保持固定寬度 */
+            width: 300px;
             padding: 20px;
             box-sizing: border-box;
         }
@@ -78,45 +79,42 @@
             border-radius: 4px;
             background-color: #e9ecef;
             position: relative;
-            min-height: 60px; /* 增加最小高度以容納多個活動 */
+            min-height: 60px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            overflow: hidden; /* 防止內容溢出單元格 */
+            overflow: hidden;
         }
         .day-number {
             font-weight: bold;
             margin-bottom: 2px;
             color: #333;
-            font-size: 0.9em; /* 日期數字稍小一點 */
+            font-size: 0.9em;
         }
         .event {
             font-size: 0.75em;
             padding: 2px 4px;
             border-radius: 3px;
             margin-top: 2px;
-            width: calc(100% - 8px); /* 留一點邊距 */
+            width: calc(100% - 8px);
             color: white;
             cursor: pointer;
-            box-sizing: border-box; /* 確保 padding 不增加寬度 */
+            box-sizing: border-box;
 
-            /* 關鍵的文字溢出處理 */
-            white-space: nowrap; /* 不換行 */
-            overflow: hidden;     /* 隱藏超出部分 */
-            text-overflow: ellipsis; /* 顯示省略號 */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .event:hover {
             opacity: 0.8;
         }
-        /* 預設事件顏色 */
         .event.default-color { background-color: #6c757d; }
 
-        /* 彈出視窗樣式 (與之前相同) */
         .modal {
             display: none;
             position: fixed;
-            z-index: 1000; /* 確保在最上層 */
+            z-index: 1000;
             left: 0;
             top: 0;
             width: 100%;
@@ -177,7 +175,7 @@
     </div>
 
     <div class="calendar-container" id="calendarContainer">
-        </div>
+    </div>
 
     <div id="eventModal" class="modal">
         <div class="modal-content">
@@ -189,7 +187,12 @@
     </div>
 
     <script>
-        const activitiesFile = 'activities.json'; // 你的 JSON 檔案路徑
+        // 設定要嘗試載入的 JSON 檔案數量上限，已修改為 5
+        const MAX_JSON_FILES = 5; 
+        // 檔案名稱前綴
+        const FILE_PREFIX = 'activities'; 
+        // 檔案名稱後綴
+        const FILE_SUFFIX = '.json'; 
 
         // 預設月份名稱
         const monthNames = [
@@ -205,30 +208,52 @@
         const modalDate = document.getElementById('modalDate');
         const modalDescription = document.getElementById('modalDescription');
 
-        // 新增的元素和變數
         const prevYearBtn = document.getElementById('prevYearBtn');
         const nextYearBtn = document.getElementById('nextYearBtn');
         const currentYearDisplay = document.getElementById('currentYearDisplay');
-        let currentDisplayYear = new Date().getFullYear(); // 追蹤目前顯示的年份
+        let currentDisplayYear = new Date().getFullYear();
 
-        let allActivities = []; // 用來儲存從 JSON 載入的所有活動資料
+        let allActivities = []; // 用來儲存從所有 JSON 檔案載入的所有活動資料
 
-        async function fetchActivities() {
-            try {
-                const response = await fetch(activitiesFile);
-                if (!response.ok) {
-                    console.warn(`無法讀取 ${activitiesFile}，將以空資料顯示。`);
-                    return [];
-                }
-                const data = await response.json();
-                return data;
-            } catch (error) {
-                console.error('讀取活動資料時發生錯誤:', error);
-                return [];
+        async function fetchAllActivities() {
+            const fetchPromises = [];
+            for (let i = 1; i <= MAX_JSON_FILES; i++) {
+                // 格式化數字為兩位數 (例如 01, 02)
+                const fileNumber = String(i).padStart(2, '0');
+                const fileName = `${FILE_PREFIX}${fileNumber}${FILE_SUFFIX}`;
+                
+                fetchPromises.push((async () => {
+                    try {
+                        const response = await fetch(fileName);
+                        if (!response.ok) {
+                            // 如果是 404 (Not Found)，則只是警告並跳過，不視為嚴重錯誤
+                            if (response.status === 404) {
+                                console.warn(`檔案 ${fileName} 不存在，將跳過。`);
+                                return [];
+                            } else {
+                                // 其他非 2xx 狀態碼則視為錯誤
+                                console.error(`載入 ${fileName} 時發生 HTTP 錯誤: ${response.status} ${response.statusText}`);
+                                return [];
+                            }
+                        }
+                        const data = await response.json();
+                        if (!Array.isArray(data)) {
+                             console.warn(`檔案 ${fileName} 的內容不是有效的 JSON 陣列，將跳過。`);
+                             return [];
+                        }
+                        return data;
+                    } catch (error) {
+                        console.error(`載入 ${fileName} 時發生網路或解析錯誤:`, error);
+                        return []; // 網路或解析錯誤時也返回空陣列
+                    }
+                })());
             }
+
+            // 等待所有檔案載入完成，然後將它們的內容合併
+            const results = await Promise.all(fetchPromises);
+            return results.flat(); // 使用 flat() 將多個陣列扁平化為一個大陣列
         }
 
-        // 修改 renderCalendar 函式，接受一個年份參數
         function renderCalendar(activities, yearToRender) {
             const calendarContainer = document.getElementById('calendarContainer');
             calendarContainer.innerHTML = ''; // 清空現有內容
@@ -241,13 +266,12 @@
 
                 const monthTitle = document.createElement('h2');
                 monthTitle.classList.add('month-title');
-                monthTitle.textContent = `${yearToRender} 年 ${monthNames[month]}`; // 使用傳入的年份
+                monthTitle.textContent = `${yearToRender} 年 ${monthNames[month]}`;
                 monthCard.appendChild(monthTitle);
 
                 const dayGrid = document.createElement('div');
                 dayGrid.classList.add('day-grid');
 
-                // 添加星期標頭
                 dayHeaders.forEach(header => {
                     const dayHeader = document.createElement('div');
                     dayHeader.classList.add('day-header');
@@ -255,17 +279,14 @@
                     dayGrid.appendChild(dayHeader);
                 });
 
-                // 計算該月的第一天是星期幾
                 const firstDayOfMonth = new Date(yearToRender, month, 1).getDay();
 
-                // 填補月初空白
                 for (let i = 0; i < firstDayOfMonth; i++) {
                     const emptyCell = document.createElement('div');
                     emptyCell.classList.add('day-cell');
                     dayGrid.appendChild(emptyCell);
                 }
 
-                // 獲取該月的天數
                 const daysInMonth = new Date(yearToRender, month + 1, 0).getDate();
 
                 for (let day = 1; day <= daysInMonth; day++) {
@@ -277,23 +298,19 @@
                     dayNumber.textContent = day;
                     dayCell.appendChild(dayNumber);
 
-                    // 檢查是否有當天的活動
                     const currentDate = new Date(yearToRender, month, day);
-                    
+                    currentDate.setHours(0, 0, 0, 0); // 清零時間部分
+
                     activities.forEach(activity => {
                         const startDate = new Date(activity.開始時間);
                         const endDate = new Date(activity.結束時間 || activity.開始時間);
 
-                        // 將時間部分清零，只比較日期
                         startDate.setHours(0, 0, 0, 0);
                         endDate.setHours(0, 0, 0, 0);
-                        currentDate.setHours(0, 0, 0, 0);
 
                         if (currentDate >= startDate && currentDate <= endDate) {
                             const eventDiv = document.createElement('div');
                             eventDiv.classList.add('event');
-                            
-                            // 設置文字內容
                             eventDiv.textContent = activity.名稱;
 
                             if (activity.顏色) {
@@ -312,10 +329,8 @@
             }
         }
 
-        // 顯示活動詳情彈出視窗
         function showEventDetails(activity) {
             modalTitle.textContent = activity.名稱;
-            
             let dateString = `日期: ${activity.開始時間}`;
             if (activity.結束時間 && activity.結束時間 !== activity.開始時間) {
                 dateString += ` 至 ${activity.結束時間}`;
@@ -325,19 +340,16 @@
             eventModal.style.display = 'flex';
         }
 
-        // 關閉彈出視窗
         closeButton.onclick = function() {
             eventModal.style.display = 'none';
         }
 
-        // 點擊視窗外部關閉
         window.onclick = function(event) {
             if (event.target == eventModal) {
                 eventModal.style.display = 'none';
             }
         }
 
-        // 新增的按鈕事件處理函式
         function goToPrevYear() {
             currentDisplayYear--;
             renderCalendar(allActivities, currentDisplayYear);
@@ -348,12 +360,11 @@
             renderCalendar(allActivities, currentDisplayYear);
         }
 
-        // 初始化
         document.addEventListener('DOMContentLoaded', async () => {
-            allActivities = await fetchActivities(); // 載入一次活動資料
-            renderCalendar(allActivities, currentDisplayYear); // 首次渲染當前年份的行事曆
+            // 頁面載入時，從所有指定的檔案中獲取所有活動
+            allActivities = await fetchAllActivities();
+            renderCalendar(allActivities, currentDisplayYear);
 
-            // 為按鈕添加事件監聽器
             prevYearBtn.addEventListener('click', goToPrevYear);
             nextYearBtn.addEventListener('click', goToNextYear);
         });
