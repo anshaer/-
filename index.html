@@ -53,7 +53,7 @@
             background-color: #fff;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            width: 300px; /* 桌面端預設寬度 (三欄佈局的基礎) */
+            width: 300px; /* 預設寬度 (會被媒體查詢覆蓋) */
             padding: 20px;
             box-sizing: border-box;
         }
@@ -176,14 +176,13 @@
             white-space: pre-wrap;
         }
 
-        /* **** 響應式設計：針對小螢幕 (手機直屏) **** */
-        @media (max-width: 600px) { /* 調整這個斷點以覆蓋大部分手機直屏 */
+        /* **** 響應式設計：針對小螢幕 (手機直屏, max-width: 600px) **** */
+        @media (max-width: 600px) { 
             body {
                 margin: 10px;
             }
             .calendar-container {
                 gap: 10px;
-                /* 確保在小螢幕上是單列垂直佈局 */
                 flex-direction: column; 
             }
             .month-card {
@@ -197,16 +196,16 @@
                 font-size: 1.3em;
             }
             .day-cell {
-                min-height: 70px; /* 在手機上可以稍微減少格子最小高度 */
+                min-height: 70px;
                 padding: 5px 0;
             }
             .day-number {
                 font-size: 0.85em;
             }
             .event {
-                font-size: 0.65em; /* 手機上標籤字體再小一點 */
+                font-size: 0.65em;
                 padding: 1px 3px;
-                width: calc(4em + 6px); /* 4em 文字寬度 + 6px (左右padding 3px*2) */
+                width: calc(4em + 6px);
                 min-height: 2.2em;
                 line-height: 1.1em;
                 max-height: 2.2em;
@@ -220,71 +219,41 @@
             }
         }
 
-        /* **** 響應式設計：針對中等螢幕 (手機橫屏, 小型平板, 601px ~ 992px) **** */
-        @media (min-width: 601px) and (max-width: 992px) {
+        /* **** 響應式設計：針對中等螢幕及大螢幕 (> 600px) **** */
+        /* 這將包含手機橫屏、平板和桌面等所有寬度大於 600px 的螢幕 */
+        @media (min-width: 601px) {
             body {
-                margin: 20px; /* 適當的邊距 */
+                margin: 20px;
             }
             .calendar-container {
                 gap: 20px; /* 月份卡片之間的間距 */
-                /* 讓月份卡片一行顯示兩列 */
-                display: flex; /* 確保flex容器 */
-                flex-wrap: wrap; /* 允許換行 */
-                justify-content: center; /* 水平置中 */
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center; /* 讓兩張卡片和留白在中間 */
+                max-width: 800px; /* 限制容器的最大寬度，確保兩邊有留白 */
+                margin: 0 auto; /* 讓整個 calendar-container 在大螢幕下置中 */
             }
             .month-card {
                 width: calc(50% - 10px); /* 每個卡片佔 50% 寬度，並減去一半的 gap 空間 */
-                /* 如果 gap 是 20px，則單邊 gap 是 10px */
-                padding: 15px; /* 稍微調整內邊距 */
+                padding: 15px; 
             }
             .month-title {
                 font-size: 1.4em;
             }
             .day-cell {
-                min-height: 75px; /* 稍微增加高度 */
+                min-height: 75px;
                 padding: 6px 0;
             }
             .day-number {
                 font-size: 0.9em;
             }
             .event {
-                font-size: 0.68em; /* 稍微大一點點的字體 */
+                font-size: 0.68em;
                 padding: 2px 4px;
-                width: calc(4em + 8px); /* 4em 文字寬度 + 8px (左右padding 4px*2) */
+                width: calc(4em + 8px);
                 min-height: 2.3em;
                 line-height: 1.15em;
                 max-height: 2.3em;
-            }
-        }
-
-        /* **** 響應式設計：針對大螢幕 (桌面, > 992px) **** */
-        @media (min-width: 993px) {
-            .calendar-container {
-                gap: 20px; /* 調整為適合三欄的間距 */
-            }
-            .month-card {
-                /* 確保三欄佈局的寬度 */
-                width: calc(33.333% - 13.333px); /* 大約三等分，減去 gap 空間 */
-                max-width: 320px; /* 設置一個最大寬度，防止過寬 */
-                padding: 20px;
-            }
-            .month-title {
-                font-size: 1.5em;
-            }
-            .day-cell {
-                min-height: 80px;
-                padding: 8px 0;
-            }
-            .day-number {
-                font-size: 0.9em;
-            }
-            .event {
-                font-size: 0.7em;
-                padding: 2px 4px;
-                width: calc(4em + 8px);
-                min-height: 2.4em;
-                line-height: 1.2em;
-                max-height: 2.4em;
             }
         }
     </style>
