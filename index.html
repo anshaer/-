@@ -84,8 +84,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            /* 保持 overflow: hidden; 以便控制整個單元格的溢出 */
-            overflow: hidden;
+            overflow: hidden; /* 保持 overflow: hidden; 以便控制整個單元格的溢出 */
         }
         .day-number {
             font-weight: bold;
@@ -97,18 +96,18 @@
         /* 關鍵改動：活動標籤樣式 */
         .event {
             font-size: 0.7em; /* 稍微縮小字體 */
-            padding: 2px 4px;
+            padding: 2px 4px; /* 內邊距，左右各4px */
             border-radius: 3px;
             margin-top: 2px;
             
-            /* 固定寬度，能容納兩個中文字 (約2.4em，可根據實際字體微調) */
-            width: 2.6em; /* 調整此值以適應兩個中文字 + 左右 padding */
+            /* 固定寬度，能容納四個中文字 (約4em基礎寬度 + padding) */
+            width: calc(4em + 8px); /* 4em 文字寬度 + 8px (左右padding 4px*2) */
             min-height: 2.4em; /* 至少兩行的高度 (2 * 1.2em) */
             line-height: 1.2em; /* 每行的高度 */
 
             color: white;
             cursor: pointer;
-            box-sizing: border-box;
+            box-sizing: border-box; /* 確保 padding 計入 width */
             
             white-space: normal; /* 允許文字換行 */
             overflow: hidden; /* 溢出隱藏 */
@@ -195,7 +194,7 @@
         <div class="modal-content">
             <span class="close-button">&times;</span>
             <h2 id="modalTitle" class="modal-title"></h2>
-            <p id="modalDate" class="modal-date"></p>
+            <p id="modalDate" id="modalDate" class="modal-date"></p>
             <p id="modalDescription" id="modalDescription" class="modal-description"></p>
         </div>
     </div>
