@@ -11,6 +11,11 @@
             background-color: #f4f4f4;
             color: #333;
         }
+        h1 {
+            text-align: center;
+            color: #0056b3;
+            margin-bottom: 30px;
+        }
         .calendar-container {
             display: flex;
             flex-wrap: wrap;
@@ -21,7 +26,7 @@
             background-color: #fff;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            width: 300px;
+            width: 300px; /* 保持固定寬度 */
             padding: 20px;
             box-sizing: border-box;
         }
@@ -40,34 +45,40 @@
         .day-header {
             font-weight: bold;
             color: #666;
+            padding-bottom: 5px;
         }
         .day-cell {
             padding: 8px 0;
             border-radius: 4px;
             background-color: #e9ecef;
             position: relative;
-            min-height: 40px;
+            min-height: 60px; /* 增加最小高度以容納多個活動 */
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
+            overflow: hidden; /* 防止內容溢出單元格 */
         }
         .day-number {
             font-weight: bold;
             margin-bottom: 2px;
             color: #333;
+            font-size: 0.9em; /* 日期數字稍小一點 */
         }
         .event {
             font-size: 0.75em;
             padding: 2px 4px;
             border-radius: 3px;
             margin-top: 2px;
-            width: calc(100% - 4px);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            width: calc(100% - 8px); /* 留一點邊距 */
             color: white;
-            cursor: pointer; /* 讓活動可以點擊 */
+            cursor: pointer;
+            box-sizing: border-box; /* 確保 padding 不增加寬度 */
+
+            /* 關鍵的文字溢出處理 */
+            white-space: nowrap; /* 不換行 */
+            overflow: hidden;     /* 隱藏超出部分 */
+            text-overflow: ellipsis; /* 顯示省略號 */
         }
         .event:hover {
             opacity: 0.8;
@@ -75,17 +86,17 @@
         /* 預設事件顏色 */
         .event.default-color { background-color: #6c757d; }
 
-        /* 彈出視窗樣式 */
+        /* 彈出視窗樣式 (與之前相同) */
         .modal {
-            display: none; /* 預設隱藏 */
-            position: fixed; /* 固定定位 */
-            z-index: 1; /* 位於最上層 */
+            display: none;
+            position: fixed;
+            z-index: 1000; /* 確保在最上層 */
             left: 0;
             top: 0;
-            width: 100%; /* 全螢幕 */
-            height: 100%; /* 全螢幕 */
-            overflow: auto; /* 如果內容過多可以滾動 */
-            background-color: rgba(0,0,0,0.4); /* 半透明背景 */
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
             justify-content: center;
             align-items: center;
         }
@@ -105,6 +116,7 @@
             float: right;
             font-size: 28px;
             font-weight: bold;
+            cursor: pointer;
         }
         .close-button:hover,
         .close-button:focus {
@@ -125,7 +137,7 @@
         .modal-description {
             line-height: 1.6;
             color: #444;
-            white-space: pre-wrap; /* 保留換行 */
+            white-space: pre-wrap;
         }
     </style>
 </head>
@@ -225,19 +237,29 @@
                     dayCell.appendChild(dayNumber);
 
                     // 檢查是否有當天的活動
-                    const formattedDate = `${currentYear}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                    const currentDate = new Date(currentYear, month, day);
                     
                     activities.forEach(activity => {
-                        if (activity.時間 === formattedDate) {
+                        const startDate = new Date(activity.開始時間);
+                        const endDate = new Date(activity.結束時間 || activity.開始時間);
+
+                        // 將時間部分清零，只比較日期
+                        startDate.setHours(0, 0, 0, 0);
+                        endDate.setHours(0, 0, 0, 0);
+                        currentDate.setHours(0, 0, 0, 0);
+
+                        if (currentDate >= startDate && currentDate <= endDate) {
                             const eventDiv = document.createElement('div');
                             eventDiv.classList.add('event');
+                            
+                            // 設置文字內容
                             eventDiv.textContent = activity.名稱;
+
                             if (activity.顏色) {
                                 eventDiv.style.backgroundColor = activity.顏色;
                             } else {
-                                eventDiv.classList.add('default-color'); // 使用預設顏色
+                                eventDiv.classList.add('default-color');
                             }
-                            // 為活動添加點擊事件監聽器
                             eventDiv.addEventListener('click', () => showEventDetails(activity));
                             dayCell.appendChild(eventDiv);
                         }
@@ -252,9 +274,14 @@
         // 顯示活動詳情彈出視窗
         function showEventDetails(activity) {
             modalTitle.textContent = activity.名稱;
-            modalDate.textContent = `日期: ${activity.時間}`;
-            modalDescription.textContent = activity.敘述 || '無詳細敘述。'; // 如果沒有敘述則顯示預設文字
-            eventModal.style.display = 'flex'; // 顯示彈出視窗
+            
+            let dateString = `日期: ${activity.開始時間}`;
+            if (activity.結束時間 && activity.結束時間 !== activity.開始時間) {
+                dateString += ` 至 ${activity.結束時間}`;
+            }
+            modalDate.textContent = dateString;
+            modalDescription.textContent = activity.敘述 || '無詳細敘述。';
+            eventModal.style.display = 'flex';
         }
 
         // 關閉彈出視窗
