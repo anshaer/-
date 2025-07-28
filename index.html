@@ -79,12 +79,13 @@
             border-radius: 4px;
             background-color: #e9ecef;
             position: relative;
-            min-height: 80px; /* 增加最小高度，以容納更多行文字 */
+            min-height: 80px; /* 調整以容納日期數字和多個事件標籤 */
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            /* 移除 overflow: hidden; 以允許內容溢出，但我們將在事件中處理 */
+            /* 保持 overflow: hidden; 以便控制整個單元格的溢出 */
+            overflow: hidden;
         }
         .day-number {
             font-weight: bold;
@@ -92,25 +93,31 @@
             color: #333;
             font-size: 0.9em;
         }
+
+        /* 關鍵改動：活動標籤樣式 */
         .event {
-            font-size: 0.7em; /* 稍微縮小字體以容納更多文字 */
+            font-size: 0.7em; /* 稍微縮小字體 */
             padding: 2px 4px;
             border-radius: 3px;
             margin-top: 2px;
-            width: calc(100% - 8px);
+            
+            /* 固定寬度，能容納兩個中文字 (約2.4em，可根據實際字體微調) */
+            width: 2.6em; /* 調整此值以適應兩個中文字 + 左右 padding */
+            min-height: 2.4em; /* 至少兩行的高度 (2 * 1.2em) */
+            line-height: 1.2em; /* 每行的高度 */
+
             color: white;
             cursor: pointer;
             box-sizing: border-box;
-
-            /* 關鍵改動：允許換行，並限制最多顯示的行數 */
+            
             white-space: normal; /* 允許文字換行 */
             overflow: hidden; /* 溢出隱藏 */
             text-overflow: ellipsis; /* 溢出時顯示省略號 */
             display: -webkit-box; /* 適用於WebKit瀏覽器，實現多行文本溢出 */
             -webkit-line-clamp: 2; /* 限制最多顯示 2 行 */
             -webkit-box-orient: vertical; /* 垂直方向排列 */
-            line-height: 1.2em; /* 行高 */
-            max-height: 2.4em; /* 2 行 * 1.2em 行高 = 2.4em */
+
+            word-break: break-all; /* 防止長單詞不換行，破壞固定寬度 */
         }
         .event:hover {
             opacity: 0.8;
