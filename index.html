@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AAA的行事曆</title>
-    <style>
+    <title id="pageTitle">載入中...</title> <style>
         /* CSS 變數定義 */
         :root {
             /* 淺色主題 (預設) */
@@ -349,7 +348,7 @@
     </style>
 </head>
 <body>
-    <h1>XXX 的行事曆</h1>
+    <h1 id="mainHeader">載入中...</h1> 
 
     <div class="theme-selector">
         <label for="theme-select">選擇主題:</label>
@@ -387,6 +386,9 @@
             '活動.json',
             '行程.json'
         ];
+        
+        // 新增標題 JSON 檔案路徑
+        const TITLE_JSON_FILE = '標題.json';
 
         // 預設月份名稱
         const monthNames = [
@@ -413,10 +415,13 @@
         const themeSelect = document.getElementById('theme-select');
         const body = document.body;
 
+        // 獲取頁面標題和主標題元素
+        const pageTitleElement = document.getElementById('pageTitle');
+        const mainHeaderElement = document.getElementById('mainHeader');
+
         // 載入活動資料
         async function fetchAllActivities() {
             const fetchPromises = [];
-            // 遍歷新的 JSON_FILES 陣列來構建檔案路徑
             JSON_FILES.forEach(fileName => {
                 fetchPromises.push((async () => {
                     try {
@@ -444,6 +449,22 @@
             });
             const results = await Promise.all(fetchPromises);
             return results.flat();
+        }
+
+        // 載入標題資料
+        async function fetchTitles() {
+            try {
+                const response = await fetch(TITLE_JSON_FILE);
+                if (!response.ok) {
+                    console.warn(`載入標題檔案 ${TITLE_JSON_FILE} 失敗: ${response.status} ${response.statusText}`);
+                    return null;
+                }
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error(`載入或解析標題檔案 ${TITLE_JSON_FILE} 時發生錯誤:`, error);
+                return null;
+            }
         }
 
         function renderCalendar(activities, yearToRender) {
@@ -578,6 +599,22 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             initializeTheme(); // 頁面載入時先初始化主題
+
+            // 載入標題內容
+            const titles = await fetchTitles();
+            if (titles) {
+                if (titles.pageTitle) {
+                    pageTitleElement.textContent = titles.pageTitle;
+                }
+                if (titles.mainHeader) {
+                    mainHeaderElement.textContent = titles.mainHeader;
+                }
+            } else {
+                // 如果載入失敗，設定預設值或保持 "載入中..."
+                pageTitleElement.textContent = "XXX 的行事曆";
+                mainHeaderElement.textContent = "XXX 的行事曆";
+            }
+
             allActivities = await fetchAllActivities();
             renderCalendar(allActivities, currentDisplayYear);
 
