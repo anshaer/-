@@ -141,7 +141,7 @@
             background-color: var(--month-card-bg);
             border-radius: 8px;
             box-shadow: 0 2px 5px var(--month-card-shadow);
-            width: 300px; /* 預設寬度 */
+            width: 300px; /* 預設寬度 (會被媒體查詢覆蓋) */
             padding: 20px;
             box-sizing: border-box;
             transition: background-color 0.3s ease, box-shadow 0.3s ease;
@@ -379,12 +379,14 @@
     </div>
 
     <script>
-        // 設定要嘗試載入的 JSON 檔案數量上限，已修改為 5
-        const MAX_JSON_FILES = 5; 
-        // 檔案名稱前綴
-        const FILE_PREFIX = 'activities'; 
-        // 檔案名稱後綴
-        const FILE_SUFFIX = '.json'; 
+        // 設定要載入的 JSON 檔案名稱列表
+        const JSON_FILES = [
+            '24節氣.json',
+            '台灣主要節日.json',
+            '國際節日.json',
+            '活動.json',
+            '行程.json'
+        ];
 
         // 預設月份名稱
         const monthNames = [
@@ -414,10 +416,8 @@
         // 載入活動資料
         async function fetchAllActivities() {
             const fetchPromises = [];
-            for (let i = 1; i <= MAX_JSON_FILES; i++) {
-                const fileNumber = String(i).padStart(2, '0');
-                const fileName = `${FILE_PREFIX}${fileNumber}${FILE_SUFFIX}`;
-                
+            // 遍歷新的 JSON_FILES 陣列來構建檔案路徑
+            JSON_FILES.forEach(fileName => {
                 fetchPromises.push((async () => {
                     try {
                         const response = await fetch(fileName);
@@ -441,7 +441,7 @@
                         return [];
                     }
                 })());
-            }
+            });
             const results = await Promise.all(fetchPromises);
             return results.flat();
         }
