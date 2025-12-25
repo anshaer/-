@@ -3,624 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="pageTitle">載入中...</title> <style>
-        /* CSS 變數定義 */
-        :root {
-            /* 淺色主題 (預設) */
-            --bg-color: #f4f4f4;
-            --text-color: #333;
-            --header-color: #0056b3;
-            --button-bg: #007bff;
-            --button-text: white;
-            --month-card-bg: #fff;
-            --month-card-shadow: rgba(0,0,0,0.1);
-            --month-title-color: #007bff;
-            --day-header-color: #666;
-            --day-cell-bg: #e9ecef;
-            --day-number-color: #333;
-            --event-text-color: white;
-            --modal-bg: #fefefe;
-            --modal-border: #888;
-            --close-button-color: #aaa;
-            --modal-title-color: #007bff;
-            --modal-date-color: #666;
-            --modal-description-color: #444;
-        }
-
-        /* 深色主題 */
-        body[data-theme="dark"] {
-            --bg-color: #2c2c2c;
-            --text-color: #e0e0e0;
-            --header-color: #79afe5;
-            --button-bg: #4a8dfa;
-            --button-text: white;
-            --month-card-bg: #3a3a3a;
-            --month-card-shadow: rgba(0,0,0,0.3);
-            --month-title-color: #79afe5;
-            --day-header-color: #bbbbbb;
-            --day-cell-bg: #4a4a4a;
-            --day-number-color: #f0f0f0;
-            --event-text-color: white;
-            --modal-bg: #3a3a3a;
-            --modal-border: #555;
-            --close-button-color: #bbb;
-            --modal-title-color: #79afe5;
-            --modal-date-color: #cccccc;
-            --modal-description-color: #dddddd;
-        }
-
-        /* 高對比主題 */
-        body[data-theme="high-contrast"] {
-            --bg-color: black;
-            --text-color: white;
-            --header-color: yellow;
-            --button-bg: yellow;
-            --button-text: black;
-            --month-card-bg: #333;
-            --month-card-shadow: none;
-            --month-title-color: yellow;
-            --day-header-color: white;
-            --day-cell-bg: #555;
-            --day-number-color: yellow;
-            --event-text-color: black;
-            --modal-bg: #333;
-            --modal-border: yellow;
-            --close-button-color: white;
-            --modal-title-color: yellow;
-            --modal-date-color: white;
-            --modal-description-color: white;
-        }
-
-
-        /* 實際應用變數的 CSS 樣式 */
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            transition: background-color 0.3s ease, color 0.3s ease; /* 平滑過渡 */
-        }
-        h1 {
-            text-align: center;
-            color: var(--header-color);
-            margin-bottom: 30px;
-        }
-        .calendar-navigation {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .calendar-navigation button {
-            padding: 10px 20px;
-            font-size: 1em;
-            margin: 0 10px;
-            cursor: pointer;
-            background-color: var(--button-bg);
-            color: var(--button-text);
-            border: none;
-            border-radius: 5px;
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-        .calendar-navigation button:hover {
-            opacity: 0.8;
-        }
-        .current-year-display {
-            font-size: 1.8em;
-            font-weight: bold;
-            color: var(--header-color);
-            margin: 0 20px;
-            vertical-align: middle;
-        }
-
-        /* 主題選擇器樣式 */
-        .theme-selector {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .theme-selector label {
-            margin-right: 10px;
-            color: var(--text-color);
-        }
-        .theme-selector select {
-            padding: 5px 10px;
-            border-radius: 5px;
-            border: 1px solid var(--month-card-border, #ccc); /* 使用變數或預設值 */
-            background-color: var(--month-card-bg); /* 背景色 */
-            color: var(--text-color); /* 文字顏色 */
-            cursor: pointer;
-            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
-        }
-
-        .calendar-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            justify-content: center;
-        }
-        .month-card {
-            background-color: var(--month-card-bg);
-            border-radius: 8px;
-            box-shadow: 0 2px 5px var(--month-card-shadow);
-            width: 300px; /* 預設寬度 (會被媒體查詢覆蓋) */
-            padding: 20px;
-            box-sizing: border-box;
-            transition: background-color 0.3s ease, box-shadow 0.3s ease;
-        }
-        .month-title {
-            text-align: center;
-            font-size: 1.5em;
-            margin-bottom: 15px;
-            color: var(--month-title-color);
-        }
-        .day-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 5px;
-            text-align: center;
-        }
-        .day-header {
-            font-weight: bold;
-            color: var(--day-header-color);
-            padding-bottom: 5px;
-        }
-        .day-cell {
-            padding: 8px 0;
-            border-radius: 4px;
-            background-color: var(--day-cell-bg);
-            position: relative;
-            min-height: 80px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            overflow: hidden; 
-            transition: background-color 0.3s ease;
-        }
-        .day-number {
-            font-weight: bold;
-            margin-bottom: 2px;
-            color: var(--day-number-color);
-            font-size: 0.9em;
-        }
-
-        .event {
-            font-size: 0.7em;
-            padding: 2px 4px;
-            border-radius: 3px;
-            margin-top: 2px;
-            
-            width: calc(4em + 8px);
-            min-height: 2.4em;
-            line-height: 1.2em;
-
-            color: var(--event-text-color); /* 事件文字顏色使用變數 */
-            cursor: pointer;
-            box-sizing: border-box;
-            
-            white-space: normal;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-
-            word-break: break-all;
-        }
-        .event:hover {
-            opacity: 0.8;
-        }
-        .event.default-color { background-color: #6c757d; } /* 預設顏色，可以考慮也改為變數 */
-
-        /* 彈出視窗樣式 */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.4);
-            justify-content: center;
-            align-items: center;
-        }
-        .modal-content {
-            background-color: var(--modal-bg);
-            margin: auto;
-            padding: 20px;
-            border: 1px solid var(--modal-border);
-            border-radius: 8px;
-            width: 80%;
-            max-width: 500px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            position: relative;
-            color: var(--modal-description-color); /* 彈出視窗內容文字顏色 */
-            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
-        }
-        .close-button {
-            color: var(--close-button-color);
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .close-button:hover,
-        .close-button:focus {
-            color: black; /* 這裡可以保持黑色或設為變數 */
-            text-decoration: none;
-            cursor: pointer;
-        }
-        .modal-title {
-            font-size: 1.5em;
-            color: var(--modal-title-color);
-            margin-bottom: 10px;
-        }
-        .modal-date {
-            font-size: 1em;
-            color: var(--modal-date-color);
-            margin-bottom: 15px;
-        }
-        .modal-description {
-            line-height: 1.6;
-            color: var(--modal-description-color);
-            white-space: pre-wrap;
-        }
-
-        /* **** 響應式設計：針對小螢幕 (手機直屏, max-width: 600px) **** */
-        @media (max-width: 600px) { 
-            body {
-                margin: 10px;
-            }
-            .calendar-container {
-                gap: 10px;
-                flex-direction: column; 
-            }
-            .month-card {
-                width: 95%;
-                max-width: none; 
-                margin-left: auto;
-                margin-right: auto;
-                padding: 15px;
-            }
-            .month-title {
-                font-size: 1.3em;
-            }
-            .day-cell {
-                min-height: 70px;
-                padding: 5px 0;
-            }
-            .day-number {
-                font-size: 0.85em;
-            }
-            .event {
-                font-size: 0.65em;
-                padding: 1px 3px;
-                width: calc(4em + 6px);
-                min-height: 2.2em;
-                line-height: 1.1em;
-                max-height: 2.2em;
-            }
-            .calendar-navigation button {
-                padding: 8px 15px;
-                font-size: 0.9em;
-            }
-            .current-year-display {
-                font-size: 1.5em;
-            }
-        }
-
-        /* **** 響應式設計：針對中等螢幕及大螢幕 (> 600px) **** */
-        @media (min-width: 601px) {
-            body {
-                margin: 20px;
-            }
-            .calendar-container {
-                gap: 20px;
-                display: flex;
-                flex-wrap: wrap;
-                justify-content: center;
-                max-width: 800px; /* 限制容器的最大寬度，確保兩邊有留白 */
-                margin: 0 auto; /* 讓整個 calendar-container 在大螢幕下置中 */
-            }
-            .month-card {
-                width: calc(50% - 10px);
-                padding: 15px; 
-            }
-            .month-title {
-                font-size: 1.4em;
-            }
-            .day-cell {
-                min-height: 75px;
-                padding: 6px 0;
-            }
-            .day-number {
-                font-size: 0.9em;
-            }
-            .event {
-                font-size: 0.68em;
-                padding: 2px 4px;
-                width: calc(4em + 8px);
-                min-height: 2.3em;
-                line-height: 1.15em;
-                max-height: 2.3em;
-            }
-        }
+    <title>圖片轉 GIF - 本機執行版</title>
+    
+    <script src="gifshot.min.js"></script>
+    
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 400px; text-align: center; }
+        .status { padding: 10px; margin-bottom: 10px; border-radius: 5px; font-size: 14px; }
+        .ok { background: #d4edda; color: #155724; }
+        .err { background: #f8d7da; color: #721c24; }
+        input[type="file"] { margin: 20px 0; }
+        button { background: #007bff; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
+        button:disabled { background: #ccc; }
+        #result img { max-width: 100%; margin-top: 20px; border-radius: 8px; }
     </style>
 </head>
 <body>
-    <h1 id="mainHeader">載入中...</h1> 
 
-    <div class="theme-selector">
-        <label for="theme-select">選擇頁面配色:</label>
-        <select id="theme-select">
-            <option value="light">淺色</option>
-            <option value="dark">深色</option>
-            <option value="high-contrast">高對比</option>
-        </select>
+<div class="card">
+    <h2>單圖轉 GIF</h2>
+    
+    <div id="check" class="status">檢查中...</div>
+
+    <input type="file" id="picInput" accept="image/*">
+    <p id="tip" style="color: #666; font-size: 13px;">請選取一張圖片</p>
+    
+    <button id="runBtn" disabled>請先載入元件</button>
+
+    <div id="result" style="display:none;">
+        <hr>
+        <div id="gifArea"></div>
+        <br>
+        <a id="save" download="my.gif"><button style="background:#28a745">下載 GIF</button></a>
     </div>
+</div>
 
-    <div class="calendar-navigation">
-        <button id="prevYearBtn">&lt;&lt; 上一年</button>
-        <span id="currentYearDisplay" class="current-year-display"></span>
-        <button id="nextYearBtn">下一年 &gt;&gt;</button>
-    </div>
+<script>
+    // 自動檢查本地的 gifshot.min.js 有沒有放對位置
+    window.onload = function() {
+        if (typeof gifshot !== 'undefined') {
+            document.getElementById('check').innerText = "✅ 引擎載入成功 (本機檔案)";
+            document.getElementById('check').className = "status ok";
+            document.getElementById('runBtn').disabled = false;
+            document.getElementById('runBtn').innerText = "開始轉換";
+        } else {
+            document.getElementById('check').innerHTML = "❌ 找不到 gifshot.min.js<br><small>請確認檔案是否跟網頁放在同一個資料夾</small>";
+            document.getElementById('check').className = "status err";
+        }
+    };
 
-    <div class="calendar-container" id="calendarContainer">
-    </div>
+    document.getElementById('runBtn').onclick = function() {
+        const file = document.getElementById('picInput').files[0];
+        if (!file) { alert("未選取圖片"); return; }
 
-    <div id="eventModal" class="modal">
-        <div class="modal-content">
-            <span class="close-button">&times;</span>
-            <h2 id="modalTitle" class="modal-title"></h2>
-            <p id="modalDate" class="modal-date"></p>
-            <p id="modalDescription" class="modal-description"></p>
-        </div>
-    </div>
+        document.getElementById('tip').innerText = "⏳ 處理中...";
+        this.disabled = true;
 
-    <script>
-        // 設定要載入的 JSON 檔案名稱列表
-        const JSON_FILES = [
-            'data/24節氣.json',
-            'data/台灣主要節日.json',
-            'data/國際節日.json',
-            'data/活動.json',
-            'data/行程.json'
-        ];
-        
-        // 新增標題 JSON 檔案路徑
-        const TITLE_JSON_FILE = 'data/標題.json';
-
-        // 預設月份名稱
-        const monthNames = [
-            "一月", "二月", "三月", "四月", "五月", "六月",
-            "七月", "八月", "九月", "十月", "十一月", "十二月"
-        ];
-        // 星期名稱
-        const dayHeaders = ["日", "一", "二", "三", "四", "五", "六"];
-
-        const eventModal = document.getElementById('eventModal');
-        const closeButton = document.getElementsByClassName('close-button')[0];
-        const modalTitle = document.getElementById('modalTitle');
-        const modalDate = document.getElementById('modalDate');
-        const modalDescription = document.getElementById('modalDescription');
-
-        const prevYearBtn = document.getElementById('prevYearBtn');
-        const nextYearBtn = document.getElementById('nextYearBtn');
-        const currentYearDisplay = document.getElementById('currentYearDisplay');
-        let currentDisplayYear = new Date().getFullYear();
-
-        let allActivities = []; // 用來儲存從所有 JSON 檔案載入的所有活動資料
-
-        // 主題相關元素
-        const themeSelect = document.getElementById('theme-select');
-        const body = document.body;
-
-        // 獲取頁面標題和主標題元素
-        const pageTitleElement = document.getElementById('pageTitle');
-        const mainHeaderElement = document.getElementById('mainHeader');
-
-        // 載入活動資料
-        async function fetchAllActivities() {
-            const fetchPromises = [];
-            JSON_FILES.forEach(fileName => {
-                fetchPromises.push((async () => {
-                    try {
-                        const response = await fetch(fileName);
-                        if (!response.ok) {
-                            if (response.status === 404) {
-                                console.warn(`檔案 ${fileName} 不存在，將跳過。`);
-                                return [];
-                            } else {
-                                console.error(`載入 ${fileName} 時發生 HTTP 錯誤: ${response.status} ${response.statusText}`);
-                                return [];
-                            }
-                        }
-                        const data = await response.json();
-                        if (!Array.isArray(data)) {
-                             console.warn(`檔案 ${fileName} 的內容不是有效的 JSON 陣列，將跳過。`);
-                             return [];
-                        }
-                        return data;
-                    } catch (error) {
-                        console.error(`載入 ${fileName} 時發生網路或解析錯誤:`, error);
-                        return [];
-                    }
-                })());
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            gifshot.createGIF({
+                images: [e.target.result],
+                gifWidth: 500,
+                gifHeight: 500,
+                numFrames: 1
+            }, function(obj) {
+                if (!obj.error) {
+                    document.getElementById('gifArea').innerHTML = `<img src="${obj.image}">`;
+                    document.getElementById('save').href = obj.image;
+                    document.getElementById('result').style.display = "block";
+                    document.getElementById('tip').innerText = "✅ 轉換成功";
+                } else {
+                    document.getElementById('tip').innerText = "❌ 錯誤：" + obj.error;
+                }
+                document.getElementById('runBtn').disabled = false;
             });
-            const results = await Promise.all(fetchPromises);
-            return results.flat();
-        }
+        };
+        reader.readAsDataURL(file);
+    };
+</script>
 
-        // 載入標題資料
-        async function fetchTitles() {
-            try {
-                const response = await fetch(TITLE_JSON_FILE);
-                if (!response.ok) {
-                    console.warn(`載入標題檔案 ${TITLE_JSON_FILE} 失敗: ${response.status} ${response.statusText}`);
-                    return null;
-                }
-                const data = await response.json();
-                return data;
-            } catch (error) {
-                console.error(`載入或解析標題檔案 ${TITLE_JSON_FILE} 時發生錯誤:`, error);
-                return null;
-            }
-        }
-
-        function renderCalendar(activities, yearToRender) {
-            const calendarContainer = document.getElementById('calendarContainer');
-            calendarContainer.innerHTML = '';
-
-            currentYearDisplay.textContent = `${yearToRender} 年`;
-
-            for (let month = 0; month < 12; month++) {
-                const monthCard = document.createElement('div');
-                monthCard.classList.add('month-card');
-
-                const monthTitle = document.createElement('h2');
-                monthTitle.classList.add('month-title');
-                monthTitle.textContent = `${yearToRender} 年 ${monthNames[month]}`;
-                monthCard.appendChild(monthTitle);
-
-                const dayGrid = document.createElement('div');
-                dayGrid.classList.add('day-grid');
-
-                dayHeaders.forEach(header => {
-                    const dayHeader = document.createElement('div');
-                    dayHeader.classList.add('day-header');
-                    dayHeader.textContent = header;
-                    dayGrid.appendChild(dayHeader);
-                });
-
-                const firstDayOfMonth = new Date(yearToRender, month, 1).getDay();
-
-                for (let i = 0; i < firstDayOfMonth; i++) {
-                    const emptyCell = document.createElement('div');
-                    emptyCell.classList.add('day-cell');
-                    dayGrid.appendChild(emptyCell);
-                }
-
-                const daysInMonth = new Date(yearToRender, month + 1, 0).getDate();
-
-                for (let day = 1; day <= daysInMonth; day++) {
-                    const dayCell = document.createElement('div');
-                    dayCell.classList.add('day-cell');
-
-                    const dayNumber = document.createElement('div');
-                    dayNumber.classList.add('day-number');
-                    dayNumber.textContent = day;
-                    dayCell.appendChild(dayNumber);
-
-                    const currentDate = new Date(yearToRender, month, day);
-                    currentDate.setHours(0, 0, 0, 0);
-
-                    activities.forEach(activity => {
-                        const startDate = new Date(activity.開始時間);
-                        const endDate = new Date(activity.結束時間 || activity.開始時間);
-
-                        startDate.setHours(0, 0, 0, 0);
-                        endDate.setHours(0, 0, 0, 0);
-
-                        if (currentDate >= startDate && currentDate <= endDate) {
-                            const eventDiv = document.createElement('div');
-                            eventDiv.classList.add('event');
-                            eventDiv.textContent = activity.名稱;
-
-                            if (activity.顏色) {
-                                eventDiv.style.backgroundColor = activity.顏色;
-                            } else {
-                                eventDiv.classList.add('default-color');
-                            }
-                            eventDiv.addEventListener('click', () => showEventDetails(activity));
-                            dayCell.appendChild(eventDiv);
-                        }
-                    });
-                    dayGrid.appendChild(dayCell);
-                }
-                monthCard.appendChild(dayGrid);
-                calendarContainer.appendChild(monthCard);
-            }
-        }
-
-        function showEventDetails(activity) {
-            modalTitle.textContent = activity.名稱;
-            let dateString = `日期: ${activity.開始時間}`;
-            if (activity.結束時間 && activity.結束時間 !== activity.開始時間) {
-                dateString += ` 至 ${activity.結束時間}`;
-            }
-            modalDate.textContent = dateString;
-            modalDescription.textContent = activity.敘述 || '無詳細敘述。';
-            eventModal.style.display = 'flex';
-        }
-
-        closeButton.onclick = function() {
-            eventModal.style.display = 'none';
-        }
-
-        window.onclick = function(event) {
-            if (event.target == eventModal) {
-                eventModal.style.display = 'none';
-            }
-        }
-
-        function goToPrevYear() {
-            currentDisplayYear--;
-            renderCalendar(allActivities, currentDisplayYear);
-        }
-
-        function goToNextYear() {
-            currentDisplayYear++;
-            renderCalendar(allActivities, currentDisplayYear);
-        }
-
-        // --- 主題切換邏輯 ---
-        function applyTheme(theme) {
-            body.setAttribute('data-theme', theme);
-            localStorage.setItem('selectedTheme', theme); // 儲存使用者偏好
-        }
-
-        // 初始化主題
-        function initializeTheme() {
-            const savedTheme = localStorage.getItem('selectedTheme');
-            if (savedTheme) {
-                applyTheme(savedTheme);
-                themeSelect.value = savedTheme; // 設定下拉選單的選中值
-            } else {
-                applyTheme('light'); // 預設為淺色主題
-                themeSelect.value = 'light';
-            }
-        }
-
-        // 監聽主題選擇變化
-        themeSelect.addEventListener('change', (event) => {
-            applyTheme(event.target.value);
-        });
-        // --- 主題切換邏輯結束 ---
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            initializeTheme(); // 頁面載入時先初始化主題
-
-            // 載入標題內容
-            const titles = await fetchTitles();
-            if (titles) {
-                if (titles.pageTitle) {
-                    pageTitleElement.textContent = titles.pageTitle;
-                }
-                if (titles.mainHeader) {
-                    mainHeaderElement.textContent = titles.mainHeader;
-                }
-            } else {
-                // 如果載入失敗，設定預設值或保持 "載入中..."
-                pageTitleElement.textContent = "XXX 的行事曆";
-                mainHeaderElement.textContent = "XXX 的行事曆";
-            }
-
-            allActivities = await fetchAllActivities();
-            renderCalendar(allActivities, currentDisplayYear);
-
-            prevYearBtn.addEventListener('click', goToPrevYear);
-            nextYearBtn.addEventListener('click', goToNextYear);
-        });
-    </script>
 </body>
 </html>
