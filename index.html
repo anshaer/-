@@ -16,21 +16,27 @@
         .input-group { margin-bottom: 20px; }
         label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; color: #333; }
         
-        input[type="text"], input[type="file"], select {
+        /* 改為 Textarea 支援換行 */
+        textarea, input[type="file"], select {
             width: 100%; padding: 14px; border: 1px solid #e5e5ea; border-radius: 12px;
             box-sizing: border-box; font-size: 16px; background: var(--bg-gray); appearance: none;
+            font-family: inherit;
         }
+        textarea { height: 80px; resize: none; }
+
+        .color-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        input[type="color"] { border: none; width: 45px; height: 45px; cursor: pointer; background: none; }
 
         .slider-box { background: var(--bg-gray); padding: 15px; border-radius: 12px; margin-top: 10px; }
         .slider-row { display: flex; align-items: center; margin-bottom: 12px; }
         .slider-row label { margin-bottom: 0; width: 70px; flex-shrink: 0; font-size: 13px; }
         input[type="range"] { flex-grow: 1; margin-right: 10px; accent-color: var(--primary-color); }
-        .val-display { width: 45px; font-size: 12px; color: #666; text-align: right; font-variant-numeric: tabular-nums; }
+        .val-display { width: 45px; font-size: 12px; color: #666; text-align: right; }
 
         button { 
             background: var(--primary-color); color: white; border: none; width: 100%;
             padding: 16px; border-radius: 14px; font-size: 17px; font-weight: 600;
-            margin-top: 20px; transition: background 0.2s;
+            margin-top: 20px;
         }
         button:disabled { background: #d1d1d6; }
 
@@ -46,22 +52,28 @@
 
 <div class="container">
     <h2>圖片加字轉影片</h2>
-    <p class="subtitle">自訂文字位子、大小與畫質</p>
+    <p class="subtitle">支援多行文字、換行與顏色調整</p>
 
     <div class="input-group">
-        <label>1. 選擇圖片</label>
+        <label>1. 選擇來源圖片</label>
         <input type="file" id="uploader" accept="image/*">
     </div>
 
     <div class="input-group">
-        <label>2. 輸入影片文字</label>
-        <input type="text" id="videoText" placeholder="請在此輸入文字內容...">
+        <label>2. 文字內容與設定</label>
+        <textarea id="videoText">禁止盜用
+可修改預設文字</textarea>
         
         <div class="slider-box">
+            <div class="color-row">
+                <label>文字顏色</label>
+                <input type="color" id="textColor" value="#ffffff">
+                <span id="colorHex" style="font-size: 12px; color: #666;">#FFFFFF</span>
+            </div>
             <div class="slider-row">
                 <label>文字大小</label>
-                <input type="range" id="fontSize" min="20" max="150" value="60">
-                <span class="val-display" id="fontSizeVal">60</span>
+                <input type="range" id="fontSize" min="20" max="250" value="80">
+                <span class="val-display" id="fontSizeVal">80</span>
             </div>
             <div class="slider-row">
                 <label>左右位置</label>
@@ -79,9 +91,9 @@
     <div class="input-group">
         <label>3. 輸出畫質</label>
         <select id="qualitySelect">
-            <option value="480">480p (最流暢)</option>
-            <option value="720" selected>720p (標準)</option>
-            <option value="1080">1080p (全高清)</option>
+            <option value="480">480p</option>
+            <option value="720" selected>720p</option>
+            <option value="1080">1080p</option>
         </select>
     </div>
 
@@ -90,7 +102,7 @@
 
     <div class="preview-box" id="previewBox">
         <video id="videoPreview" controls></video>
-        <a id="downloadLink" style="display:block; text-align:center; margin-top:15px; color:#007AFF; text-decoration:none; font-weight:600; padding: 10px;">⬇️ 下載影片到手機</a>
+        <a id="downloadLink" style="display:block; text-align:center; margin-top:15px; color:#007AFF; text-decoration:none; font-weight:600; padding: 10px;">⬇️ 下載影片</a>
     </div>
 </div>
 
@@ -98,16 +110,19 @@
     const { createFFmpeg, fetchFile } = FFmpeg;
     const ffmpeg = createFFmpeg({ log: true });
 
-    // 更新滑桿數值顯示的函數
     function updateVal(id) {
         const el = document.getElementById(id);
         const display = document.getElementById(id + 'Val');
-        display.innerText = el.value + (id.includes('pos') ? '%' : '');
+        if (display) display.innerText = el.value + (id.includes('pos') ? '%' : '');
     }
 
     ['fontSize', 'posX', 'posY'].forEach(id => {
         document.getElementById(id).oninput = () => updateVal(id);
     });
+
+    document.getElementById('textColor').oninput = (e) => {
+        document.getElementById('colorHex').innerText = e.target.value.toUpperCase();
+    };
 
     const convertBtn = document.getElementById('convertBtn');
     const statusDisplay = document.getElementById('statusDisplay');
@@ -116,9 +131,14 @@
         const uploader = document.getElementById('uploader');
         if (uploader.files.length === 0) return alert('請先選擇圖片');
         
-        const file = uploader.files[0];
-        const text = document.getElementById('videoText').value || ' ';
+        // 獲取文字並處理換行
+        // FFmpeg 指令中換行需寫為 \n，且引號需要特別處理
+        let text = document.getElementById('videoText').value || ' ';
+        // 轉義單引號並將換行符替換為 FFmpeg 認得的格式
+        text = text.replace(/'/g, "'\\''").replace(/\n/g, '\n');
+
         const size = document.getElementById('fontSize').value;
+        const color = document.getElementById('textColor').value;
         const xPct = document.getElementById('posX').value / 100;
         const yPct = document.getElementById('posY').value / 100;
         const h = document.getElementById('qualitySelect').value;
@@ -127,29 +147,32 @@
         
         try {
             if (!ffmpeg.isLoaded()) {
-                statusDisplay.innerText = '⏳ 正在初始化 FFmpeg 引擎...';
+                statusDisplay.innerText = '⏳ 正在初始化引擎...';
                 await ffmpeg.load();
             }
 
-            statusDisplay.innerText = '⏳ 正在載入中文字體 (僅需一次)...';
+            statusDisplay.innerText = '⏳ 正在載入字體中...';
             const fontUrl = 'https://raw.githubusercontent.com/googlefonts/noto-cjk/main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Bold.otf';
             ffmpeg.FS('writeFile', 'font.otf', await fetchFile(fontUrl));
 
             statusDisplay.innerText = '⏳ 正在處理圖片檔案...';
-            ffmpeg.FS('writeFile', 'input.img', await fetchFile(file));
+            ffmpeg.FS('writeFile', 'input.img', await fetchFile(file = uploader.files[0]));
 
-            statusDisplay.innerText = `🚀 正在合成影片 (${h}p)... 請勿離開`;
+            statusDisplay.innerText = `🚀 影片合成中 (${h}p)...`;
             
-            // 增加 borderw (邊框) 和 shadow (陰影) 讓文字更顯眼
+            // drawtext 指令說明：
+            // x=(w-tw)*xPct: 左右位置百分比
+            // y=(h-th)*yPct: 上下位置百分比
+            // text_align=center: 讓多行文字水平置中
             await ffmpeg.run(
                 '-loop', '1', '-i', 'input.img',
                 '-t', '3',
-                '-vf', `scale=-2:${h},drawtext=fontfile=font.otf:text='${text}':fontcolor=white:fontsize=${size}:shadowcolor=black@0.6:shadowx=4:shadowy=4:x=(w-tw)*${xPct}:y=(h-th)*${yPct}`,
+                '-vf', `scale=-2:${h},drawtext=fontfile=font.otf:text='${text}':fontcolor=${color}:fontsize=${size}:text_align=center:shadowcolor=black@0.4:shadowx=2:shadowy=2:x=(w-tw)*${xPct}:y=(h-th)*${yPct}`,
                 '-pix_fmt', 'yuv420p',
                 'out.mp4'
             );
 
-            statusDisplay.innerText = '⌛ 正在打包影片內容...';
+            statusDisplay.innerText = '⌛ 打包下載中...';
             const data = ffmpeg.FS('readFile', 'out.mp4');
             const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
             
@@ -158,12 +181,12 @@
             document.getElementById('downloadLink').href = url;
             document.getElementById('downloadLink').download = `video_${h}p.mp4`;
             
-            statusDisplay.innerText = '✅ 影片生成完成！';
+            statusDisplay.innerText = '✅ 生成完成！';
             document.getElementById('previewBox').scrollIntoView({ behavior: 'smooth' });
 
         } catch (e) {
             console.error(e);
-            statusDisplay.innerText = '❌ 轉換失敗，請重新嘗試或降低畫質。';
+            statusDisplay.innerText = '❌ 轉換失敗，請重新嘗試。';
         } finally {
             convertBtn.disabled = false;
         }
