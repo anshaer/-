@@ -2,97 +2,107 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>圖片轉 1 秒影片工具</title>
+    <title>圖片轉標準 MP4 工具 (H.264)</title>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 50px; background: #f4f4f9; }
-        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; }
-        #preview { max-width: 300px; margin-top: 20px; display: none; border-radius: 8px; }
-        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 20px; font-size: 16px; }
-        button:disabled { background: #ccc; }
-        #status { margin-top: 15px; color: #555; }
+        body { font-family: sans-serif; background: #15202b; color: white; display: flex; justify-content: center; padding: 40px; }
+        .card { background: #192734; padding: 30px; border-radius: 16px; width: 100%; max-width: 400px; text-align: center; }
+        #preview { max-width: 100%; margin: 20px 0; border-radius: 8px; display: none; }
+        .btn { background: #1d9bf0; color: white; border: none; padding: 12px 24px; border-radius: 30px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; }
+        .btn:disabled { background: #666; cursor: not-allowed; }
+        #log { font-size: 12px; color: #8899a6; margin-top: 15px; text-align: left; height: 60px; overflow-y: auto; background: #000; padding: 10px; border-radius: 5px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>圖片轉影片 (1秒)</h2>
+<div class="card">
+    <h2>圖片 ➔ MP4 (H.264)</h2>
+    <p style="font-size: 14px; color: #8899a6;">產出符合 X 上傳規範的影片</p>
+    
     <input type="file" id="imageInput" accept="image/*">
-    <br>
-    <img id="preview" src="" alt="預覽圖">
-    <br>
-    <button id="convertBtn" disabled>開始轉換並下載</button>
-    <div id="status"></div>
+    <img id="preview">
+    
+    <button id="convertBtn" class="btn" disabled>載入組件中...</button>
+    
+    <div id="log">等待操作...</div>
 </div>
 
 <script>
+    const { createFFmpeg, fetchFile } = FFmpeg;
+    const ffmpeg = createFFmpeg({ log: true });
+    
     const imageInput = document.getElementById('imageInput');
     const preview = document.getElementById('preview');
     const convertBtn = document.getElementById('convertBtn');
-    const status = document.getElementById('status');
+    const logElem = document.getElementById('log');
 
-    let selectedImage = null;
+    function updateLog(msg) {
+        logElem.innerHTML += `<div>> ${msg}</div>`;
+        logElem.scrollTop = logElem.scrollHeight;
+    }
 
-    // 當使用者選擇圖片時
-    imageInput.addEventListener('change', (e) => {
+    // 初始化 FFmpeg
+    (async () => {
+        try {
+            await ffmpeg.load();
+            convertBtn.innerText = "開始轉換為 MP4";
+            updateLog("FFmpeg 已就緒");
+        } catch (e) {
+            updateLog("載入失敗，請確保環境支援 SharedArrayBuffer");
+        }
+    })();
+
+    imageInput.onchange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                preview.src = event.target.result;
-                preview.style.display = 'block';
-                selectedImage = new Image();
-                selectedImage.src = event.target.result;
-                selectedImage.onload = () => {
-                    convertBtn.disabled = false;
-                    status.innerText = "圖片已就緒";
-                };
-            };
-            reader.readAsDataURL(file);
+            preview.src = URL.createObjectURL(file);
+            preview.style.display = 'block';
+            convertBtn.disabled = false;
+            updateLog("圖片已載入");
         }
-    });
+    };
 
-    // 轉換核心邏輯
-    convertBtn.addEventListener('click', () => {
-        const duration = 1000; // 1秒
-        const fps = 30;        // 每秒幀數
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
+    convertBtn.onclick = async () => {
+        const file = imageInput.files[0];
+        if (!file) return;
 
-        // 設定影片解析度（以圖片原始尺寸為準）
-        canvas.width = selectedImage.width;
-        canvas.height = selectedImage.height;
+        convertBtn.disabled = true;
+        convertBtn.innerText = "轉換中...";
+        updateLog("正在編碼 H.264 MP4...");
 
-        // 建立錄製串流
-        const stream = canvas.captureStream(fps);
-        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-        const chunks = [];
+        // 將圖片寫入 ffmpeg 虛擬檔案系統
+        ffmpeg.FS('writeFile', 'input.png', await fetchFile(file));
 
-        recorder.ondataavailable = (e) => chunks.push(e.data);
-        recorder.onstop = () => {
-            const blob = new Blob(chunks, { type: 'video/webm' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'output_video.webm';
-            a.click();
-            status.innerText = "轉換完成！已開始下載。";
-        };
+        /**
+         * FFmpeg 參數說明：
+         * -loop 1: 循環輸入圖片
+         * -t 1: 持續 1 秒
+         * -pix_fmt yuv420p: X 要求必須是 YUV420P 格式
+         * -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2": 強制寬高為偶數
+         */
+        await ffmpeg.run(
+            '-loop', '1', 
+            '-i', 'input.png', 
+            '-c:v', 'libx264', 
+            '-t', '1', 
+            '-pix_fmt', 'yuv420p', 
+            '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2', 
+            'output.mp4'
+        );
 
-        // 開始錄製
-        recorder.start();
-        status.innerText = "正在錄製中...";
+        const data = ffmpeg.FS('readFile', 'output.mp4');
 
-        // 繪製畫面（每秒 30 次，持續 1 秒）
-        let startTime = Date.now();
-        const interval = setInterval(() => {
-            ctx.drawImage(selectedImage, 0, 0);
-            if (Date.now() - startTime >= duration) {
-                clearInterval(interval);
-                recorder.stop();
-            }
-        }, 1000 / fps);
-    });
+        // 下載檔案
+        const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'x_upload_ready.mp4';
+        a.click();
+
+        updateLog("轉換完成！請嘗試上傳至 X。");
+        convertBtn.disabled = false;
+        convertBtn.innerText = "再次轉換";
+    };
 </script>
 
 </body>
