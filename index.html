@@ -2,100 +2,97 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>圖片轉 GIF - 效能終極修正</title>
-    <script src="gifshot.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圖片轉 1 秒影片工具</title>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 350px; text-align: center; }
-        .status { background: #d4edda; color: #155724; padding: 10px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; }
-        button { background: #007bff; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
-        button:disabled { background: #ccc; cursor: wait; }
-        #tip { margin: 10px 0; font-size: 13px; color: #666; min-height: 20px; }
-        img { max-width: 100%; margin-top: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 50px; background: #f4f4f9; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; }
+        #preview { max-width: 300px; margin-top: 20px; display: none; border-radius: 8px; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 20px; font-size: 16px; }
+        button:disabled { background: #ccc; }
+        #status { margin-top: 15px; color: #555; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <div class="status">✅ 引擎載入成功</div>
-    <input type="file" id="picInput" accept="image/*">
-    <p id="tip">建議測試 1MB 以內的圖片</p>
-    <button id="runBtn">開始轉換 (急速優化版)</button>
-
-    <div id="result" style="display:none;">
-        <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
-        <div id="gifArea"></div>
-        <br>
-        <a id="save" download="output.gif"><button style="background:#28a745">儲存檔案</button></a>
-    </div>
+<div class="container">
+    <h2>圖片轉影片 (1秒)</h2>
+    <input type="file" id="imageInput" accept="image/*">
+    <br>
+    <img id="preview" src="" alt="預覽圖">
+    <br>
+    <button id="convertBtn" disabled>開始轉換並下載</button>
+    <div id="status"></div>
 </div>
 
 <script>
-    document.getElementById('runBtn').onclick = async function() {
-        const file = document.getElementById('picInput').files[0];
-        if (!file) return;
+    const imageInput = document.getElementById('imageInput');
+    const preview = document.getElementById('preview');
+    const convertBtn = document.getElementById('convertBtn');
+    const status = document.getElementById('status');
 
-        const btn = this;
-        const tip = document.getElementById('tip');
-        btn.disabled = true;
-        tip.innerText = "⚡ 正在急速重組像素 (請稍候)...";
+    let selectedImage = null;
 
-        try {
-            // 1. 強制將圖片縮小到 300px 以內，徹底解決 Canvas 讀取壓力
-            const tinyImg = await shrinkToTiny(file, 300);
-
-            // 2. 使用 gifshot 生成 (因為圖片變得很小，運算會變極快)
-            gifshot.createGIF({
-                images: [tinyImg],
-                gifWidth: 300,
-                gifHeight: 300,
-                numFrames: 1,
-                sampleInterval: 50 // 大幅提高取樣間距，犧牲一點細節換取不卡死
-            }, function(obj) {
-                if (!obj.error) {
-                    document.getElementById('gifArea').innerHTML = `<img src="${obj.image}">`;
-                    document.getElementById('save').href = obj.image;
-                    document.getElementById('result').style.display = "block";
-                    tip.innerText = "✅ 轉換完成！";
-                } else {
-                    tip.innerText = "❌ 轉換失敗：" + obj.error;
-                }
-                btn.disabled = false;
-            });
-        } catch (err) {
-            tip.innerText = "❌ 處理過程出錯";
-            btn.disabled = false;
-        }
-    };
-
-    // 此函數會將任何圖片強制縮小到指定的 size 內
-    function shrinkToTiny(file, size) {
-        return new Promise((resolve) => {
+    // 當使用者選擇圖片時
+    imageInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
             const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    // 同時解決您截圖中的 willReadFrequently 警告
-                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                    
-                    // 等比例縮放
-                    let w = img.width, h = img.height;
-                    if (w > h) { h = (h / w) * size; w = size; } 
-                    else { w = (w / h) * size; h = size; }
-                    
-                    canvas.width = w;
-                    canvas.height = h;
-                    ctx.drawImage(img, 0, 0, w, h);
-                    
-                    // 轉為低品質的 JPEG 數據供 gifshot 處理，速度最快
-                    resolve(canvas.toDataURL('image/jpeg', 0.5));
+            reader.onload = (event) => {
+                preview.src = event.target.result;
+                preview.style.display = 'block';
+                selectedImage = new Image();
+                selectedImage.src = event.target.result;
+                selectedImage.onload = () => {
+                    convertBtn.disabled = false;
+                    status.innerText = "圖片已就緒";
                 };
-                img.src = e.target.result;
             };
             reader.readAsDataURL(file);
-        });
-    }
+        }
+    });
+
+    // 轉換核心邏輯
+    convertBtn.addEventListener('click', () => {
+        const duration = 1000; // 1秒
+        const fps = 30;        // 每秒幀數
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // 設定影片解析度（以圖片原始尺寸為準）
+        canvas.width = selectedImage.width;
+        canvas.height = selectedImage.height;
+
+        // 建立錄製串流
+        const stream = canvas.captureStream(fps);
+        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+        const chunks = [];
+
+        recorder.ondataavailable = (e) => chunks.push(e.data);
+        recorder.onstop = () => {
+            const blob = new Blob(chunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'output_video.webm';
+            a.click();
+            status.innerText = "轉換完成！已開始下載。";
+        };
+
+        // 開始錄製
+        recorder.start();
+        status.innerText = "正在錄製中...";
+
+        // 繪製畫面（每秒 30 次，持續 1 秒）
+        let startTime = Date.now();
+        const interval = setInterval(() => {
+            ctx.drawImage(selectedImage, 0, 0);
+            if (Date.now() - startTime >= duration) {
+                clearInterval(interval);
+                recorder.stop();
+            }
+        }, 1000 / fps);
+    });
 </script>
 
 </body>
