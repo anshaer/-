@@ -2,73 +2,162 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3秒真影片</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>手機快速轉影片</title>
     <script src="coi-serviceworker.js"></script>
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 90%; max-width: 500px; text-align: center; }
-        h2 { color: #1a73e8; }
-        .preview-box { margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px; display: none; }
-        video, img { width: 100%; max-width: 400px; border-radius: 8px; margin-top: 10px; border: 1px solid #ddd; }
-        button { background: #1a73e8; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; transition: 0.3s; }
-        button:disabled { background: #ccc; }
-        #status { margin-top: 15px; font-size: 14px; color: #666; }
+        :root {
+            --primary-color: #007AFF; /* iOS Blue */
+            --bg-color: #f2f2f7;
+        }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background-color: var(--bg-color); 
+            margin: 0; 
+            display: flex; 
+            justify-content: center; 
+            padding: 20px;
+        }
+        .container { 
+            background: white; 
+            padding: 24px; 
+            border-radius: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05); 
+            width: 100%; 
+            max-width: 400px; 
+        }
+        h2 { color: #000; font-size: 22px; margin-bottom: 8px; text-align: center; }
+        .subtitle { color: #8e8e93; font-size: 14px; text-align: center; margin-bottom: 24px; }
+        
+        /* 表單樣式 */
+        .input-group { margin-bottom: 20px; }
+        label { display: block; font-weight: 600; margin-bottom: 8px; color: #333; font-size: 14px; }
+        
+        input[type="file"], select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d1d6;
+            border-radius: 10px;
+            box-sizing: border-box;
+            font-size: 16px; /* 防止 iOS 縮放 */
+            background-color: #fff;
+        }
+
+        button { 
+            background: var(--primary-color); 
+            color: white; 
+            border: none; 
+            width: 100%;
+            padding: 16px; 
+            border-radius: 14px; 
+            font-size: 17px; 
+            font-weight: 600;
+            cursor: pointer; 
+            transition: opacity 0.2s; 
+        }
+        button:disabled { background: #aeaeb2; cursor: not-allowed; }
+        button:active { opacity: 0.7; }
+
+        #status { 
+            margin-top: 16px; 
+            font-size: 13px; 
+            color: #8e8e93; 
+            text-align: center;
+            min-height: 1.2em;
+        }
+
+        /* 預覽區塊 */
+        .preview-box { 
+            margin-top: 24px; 
+            border-top: 1px solid #e5e5ea; 
+            padding-top: 24px; 
+            display: none; 
+        }
+        video { 
+            width: 100%; 
+            border-radius: 12px; 
+            background: #000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .download-btn {
+            display: block;
+            text-align: center;
+            margin-top: 15px;
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+            padding: 10px;
+        }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h2>圖片轉影片（手機用）</h2>
-    <p>生成 3 秒 MP4（480p)</p>
-    <p>生成速度依手機處理性能決定</p>
-    <p>一般處理時間約30-180秒</p>
-    <input type="file" id="uploader" accept="image/*" style="margin-bottom: 20px;"><br>
-    <button id="convertBtn">開始轉換 (480P)</button>
+<div class="container">
+    <h2>圖片轉影片</h2>
+    <p class="subtitle">生成 3 秒高品質 MP4 影片</p>
+
+    <div class="input-group">
+        <label>1. 選擇圖片</label>
+        <input type="file" id="uploader" accept="image/*">
+    </div>
+
+    <div class="input-group">
+        <label>2. 選擇輸出畫質</label>
+        <select id="qualitySelect">
+            <option value="480">480p (速度最快)</option>
+            <option value="720" selected>720p (標準高清)</option>
+            <option value="1080">1080p (全高清 - 處理較慢)</option>
+        </select>
+    </div>
+
+    <button id="convertBtn">開始轉換</button>
     <p id="status">準備就緒</p>
 
     <div class="preview-box" id="previewBox">
-        <p>原始圖片預覽</p>
-        <img id="imgPreview">
-        <p>轉換後的 480P 影片</p>
         <video id="videoPreview" controls></video>
-        <br>
-        <a id="downloadLink" style="display:inline-block; margin-top:10px; color:#1a73e8; text-decoration:none; font-weight:bold;">⬇️ 下載影片</a>
+        <a id="downloadLink" class="download-btn">⬇️ 儲存影片到相簿</a>
     </div>
 </div>
 
 <script>
     const { createFFmpeg, fetchFile } = FFmpeg;
-    const ffmpeg = createFFmpeg({ log: true });
+    const ffmpeg = createFFmpeg({ 
+        log: true,
+        corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+    });
 
     const convertBtn = document.getElementById('convertBtn');
     const uploader = document.getElementById('uploader');
     const status = document.getElementById('status');
+    const qualitySelect = document.getElementById('qualitySelect');
 
     convertBtn.onclick = async () => {
-        if (uploader.files.length === 0) return alert('請先選擇檔案');
+        if (uploader.files.length === 0) return alert('請選擇一張圖片');
         
         const file = uploader.files[0];
+        const targetHeight = qualitySelect.value;
+        
         convertBtn.disabled = true;
-        status.innerText = '正在初始化 FFmpeg 引擎...';
+        status.innerText = '正在啟動處理引擎...';
 
         try {
             if (!ffmpeg.isLoaded()) await ffmpeg.load();
             
-            status.innerText = '正在讀取圖片並壓縮編碼...';
+            status.innerText = '正在讀取檔案...';
             const { name } = file;
             ffmpeg.FS('writeFile', name, await fetchFile(file));
 
-            // 關鍵指令說明：
-            // -vf "scale=-2:480"：強制高度 480 像素，寬度依比例縮放（-2 代表自動計算且必須為偶數）
-            // -pix_fmt yuv420p：確保手機和一般播放器能看
+            status.innerText = `正在生成 ${targetHeight}p 影片...請勿關閉分頁`;
+            
+            // 指令解釋：
+            // scale=-2:高度 -> -2 會確保寬度按比例縮放且是 2 的倍數（h.264 限制）
             await ffmpeg.run(
                 '-loop', '1', 
                 '-i', name, 
                 '-c:v', 'libx264', 
                 '-t', '3', 
-                '-vf', 'scale=-2:480', 
+                '-vf', `scale=-2:${targetHeight}`, 
                 '-pix_fmt', 'yuv420p', 
                 'output.mp4'
             );
@@ -77,15 +166,17 @@
             const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
             
             document.getElementById('previewBox').style.display = 'block';
-            document.getElementById('imgPreview').src = URL.createObjectURL(file);
             document.getElementById('videoPreview').src = videoUrl;
             document.getElementById('downloadLink').href = videoUrl;
-            document.getElementById('downloadLink').download = 'compressed_480p.mp4';
+            document.getElementById('downloadLink').download = `video_${targetHeight}p.mp4`;
             
-            status.innerText = '轉換完成！';
+            status.innerText = '✅ 轉換成功！';
+            // 自動滾動到預覽位置
+            document.getElementById('previewBox').scrollIntoView({ behavior: 'smooth' });
+
         } catch (e) {
             console.error(e);
-            status.innerText = '轉換出錯，請檢查圖片格式。';
+            status.innerText = '❌ 出錯了，請嘗試較低畫質或更換圖片。';
         } finally {
             convertBtn.disabled = false;
         }
