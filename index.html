@@ -16,27 +16,25 @@
         .input-group { margin-bottom: 20px; }
         label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; color: #333; }
         
-        /* 改為 Textarea 支援換行 */
-        textarea, input[type="file"], select {
+        input[type="text"], input[type="file"], select {
             width: 100%; padding: 14px; border: 1px solid #e5e5ea; border-radius: 12px;
             box-sizing: border-box; font-size: 16px; background: var(--bg-gray); appearance: none;
-            font-family: inherit;
         }
-        textarea { height: 80px; resize: none; }
 
+        /* 顏色選擇器樣式 */
         .color-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-        input[type="color"] { border: none; width: 45px; height: 45px; cursor: pointer; background: none; }
+        input[type="color"] { border: none; width: 50px; height: 50px; cursor: pointer; background: none; }
 
         .slider-box { background: var(--bg-gray); padding: 15px; border-radius: 12px; margin-top: 10px; }
         .slider-row { display: flex; align-items: center; margin-bottom: 12px; }
         .slider-row label { margin-bottom: 0; width: 70px; flex-shrink: 0; font-size: 13px; }
         input[type="range"] { flex-grow: 1; margin-right: 10px; accent-color: var(--primary-color); }
-        .val-display { width: 45px; font-size: 12px; color: #666; text-align: right; }
+        .val-display { width: 45px; font-size: 12px; color: #666; text-align: right; font-variant-numeric: tabular-nums; }
 
         button { 
             background: var(--primary-color); color: white; border: none; width: 100%;
             padding: 16px; border-radius: 14px; font-size: 17px; font-weight: 600;
-            margin-top: 20px;
+            margin-top: 20px; transition: background 0.2s;
         }
         button:disabled { background: #d1d1d6; }
 
@@ -52,7 +50,7 @@
 
 <div class="container">
     <h2>圖片加字轉影片</h2>
-    <p class="subtitle">支援多行文字、換行與顏色調整</p>
+    <p class="subtitle">設定浮水印內容、顏色與畫質</p>
 
     <div class="input-group">
         <label>1. 選擇來源圖片</label>
@@ -60,15 +58,14 @@
     </div>
 
     <div class="input-group">
-        <label>2. 文字內容與設定</label>
-        <textarea id="videoText">禁止盜用
-可修改預設文字</textarea>
+        <label>2. 文字與外觀設定</label>
+        <input type="text" id="videoText" value="禁止盜用" placeholder="輸入文字內容...">
         
         <div class="slider-box">
             <div class="color-row">
                 <label>文字顏色</label>
                 <input type="color" id="textColor" value="#ffffff">
-                <span id="colorHex" style="font-size: 12px; color: #666;">#FFFFFF</span>
+                <span id="colorHex" style="font-size: 12px; color: #666;">#ffffff</span>
             </div>
             <div class="slider-row">
                 <label>文字大小</label>
@@ -97,7 +94,7 @@
         </select>
     </div>
 
-    <button id="convertBtn">開始生成影片</button>
+    <button id="convertBtn">生成影片</button>
     <p id="statusDisplay">系統準備就緒</p>
 
     <div class="preview-box" id="previewBox">
@@ -110,6 +107,7 @@
     const { createFFmpeg, fetchFile } = FFmpeg;
     const ffmpeg = createFFmpeg({ log: true });
 
+    // 更新顯示數值
     function updateVal(id) {
         const el = document.getElementById(id);
         const display = document.getElementById(id + 'Val');
@@ -131,12 +129,8 @@
         const uploader = document.getElementById('uploader');
         if (uploader.files.length === 0) return alert('請先選擇圖片');
         
-        // 獲取文字並處理換行
-        // FFmpeg 指令中換行需寫為 \n，且引號需要特別處理
-        let text = document.getElementById('videoText').value || ' ';
-        // 轉義單引號並將換行符替換為 FFmpeg 認得的格式
-        text = text.replace(/'/g, "'\\''").replace(/\n/g, '\n');
-
+        const file = uploader.files[0];
+        const text = document.getElementById('videoText').value || ' ';
         const size = document.getElementById('fontSize').value;
         const color = document.getElementById('textColor').value;
         const xPct = document.getElementById('posX').value / 100;
@@ -156,18 +150,16 @@
             ffmpeg.FS('writeFile', 'font.otf', await fetchFile(fontUrl));
 
             statusDisplay.innerText = '⏳ 正在處理圖片檔案...';
-            ffmpeg.FS('writeFile', 'input.img', await fetchFile(file = uploader.files[0]));
+            ffmpeg.FS('writeFile', 'input.img', await fetchFile(file));
 
-            statusDisplay.innerText = `🚀 影片合成中 (${h}p)...`;
+            statusDisplay.innerText = `🚀 合成中 (${h}p)... 可能需要 1 分鐘`;
             
-            // drawtext 指令說明：
-            // x=(w-tw)*xPct: 左右位置百分比
-            // y=(h-th)*yPct: 上下位置百分比
-            // text_align=center: 讓多行文字水平置中
+            // 轉換 color 格式為 FFmpeg 可接受的 0xRRGGBB 格式或直接傳入顏色字串
+            // drawtext 的 fontcolor 支援 hex 色碼
             await ffmpeg.run(
                 '-loop', '1', '-i', 'input.img',
                 '-t', '3',
-                '-vf', `scale=-2:${h},drawtext=fontfile=font.otf:text='${text}':fontcolor=${color}:fontsize=${size}:text_align=center:shadowcolor=black@0.4:shadowx=2:shadowy=2:x=(w-tw)*${xPct}:y=(h-th)*${yPct}`,
+                '-vf', `scale=-2:${h},drawtext=fontfile=font.otf:text='${text}':fontcolor=${color}:fontsize=${size}:shadowcolor=black@0.4:shadowx=2:shadowy=2:x=(w-tw)*${xPct}:y=(h-th)*${yPct}`,
                 '-pix_fmt', 'yuv420p',
                 'out.mp4'
             );
@@ -179,14 +171,14 @@
             document.getElementById('previewBox').style.display = 'block';
             document.getElementById('videoPreview').src = url;
             document.getElementById('downloadLink').href = url;
-            document.getElementById('downloadLink').download = `video_${h}p.mp4`;
+            document.getElementById('downloadLink').download = `watermark_${h}p.mp4`;
             
             statusDisplay.innerText = '✅ 生成完成！';
             document.getElementById('previewBox').scrollIntoView({ behavior: 'smooth' });
 
         } catch (e) {
             console.error(e);
-            statusDisplay.innerText = '❌ 轉換失敗，請重新嘗試。';
+            statusDisplay.innerText = '❌ 出錯了，請嘗試重整網頁或降低畫質。';
         } finally {
             convertBtn.disabled = false;
         }
