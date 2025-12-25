@@ -3,182 +3,160 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>圖片轉影片</title>
+    <title>圖片加字轉影片</title>
     <script src="coi-serviceworker.js"></script>
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
-        :root {
-            --primary-color: #007AFF; 
-            --text-main: #1c1c1e;
-            --text-sub: #8e8e93;
-            --input-bg: #ffffff;
-        }
+        :root { --primary-color: #007AFF; --bg-gray: #f2f2f7; }
+        body { font-family: -apple-system, system-ui, sans-serif; background-color: #ffffff; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 500px; }
+        h2 { font-size: 24px; font-weight: 700; margin-bottom: 5px; }
+        .subtitle { color: #8e8e93; font-size: 14px; margin-bottom: 25px; }
         
-        /* 移除卡片感，改為純色背景直接鋪滿 */
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            background-color: #ffffff; /* 或者使用 #f9f9f9 */
-            margin: 0; 
-            padding: 20px;
-            color: var(--text-main);
-            display: flex;
-            justify-content: center;
+        .input-group { margin-bottom: 20px; }
+        label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; color: #333; }
+        
+        input[type="text"], input[type="file"], select {
+            width: 100%; padding: 12px; border: 1px solid #e5e5ea; border-radius: 10px;
+            box-sizing: border-box; font-size: 16px; background: var(--bg-gray);
         }
 
-        .container { 
-            width: 100%; 
-            max-width: 500px; 
-            padding-top: 10px;
-        }
-
-        h2 { font-size: 24px; margin-bottom: 8px; text-align: left; font-weight: 700; }
-        .subtitle { color: var(--text-sub); font-size: 14px; text-align: left; margin-bottom: 30px; }
-        
-        .input-group { margin-bottom: 24px; }
-        label { display: block; font-weight: 600; margin-bottom: 10px; font-size: 15px; }
-        
-        /* 讓輸入框更有質感 */
-        input[type="file"], select {
-            width: 100%;
-            padding: 14px;
-            border: 1px solid #e5e5ea;
-            border-radius: 12px;
-            box-sizing: border-box;
-            font-size: 16px;
-            background-color: #f2f2f7; /* 淺灰色背景 */
-            appearance: none; /* 移除預設樣式 */
-        }
+        /* 滑桿樣式 */
+        .slider-box { background: var(--bg-gray); padding: 15px; border-radius: 12px; margin-top: 10px; }
+        .slider-row { display: flex; align-items: center; margin-bottom: 10px; }
+        .slider-row label { margin-bottom: 0; width: 80px; flex-shrink: 0; }
+        input[type="range"] { flex-grow: 1; margin-right: 10px; }
+        .val-display { width: 40px; font-size: 12px; color: #666; text-align: right; }
 
         button { 
-            background: var(--primary-color); 
-            color: white; 
-            border: none; 
-            width: 100%;
-            padding: 16px; 
-            border-radius: 14px; 
-            font-size: 17px; 
-            font-weight: 600;
-            cursor: pointer; 
-            margin-top: 10px;
-            box-shadow: 0 4px 15px rgba(0,122,255,0.2);
+            background: var(--primary-color); color: white; border: none; width: 100%;
+            padding: 16px; border-radius: 14px; font-size: 17px; font-weight: 600;
+            margin-top: 20px; box-shadow: 0 4px 15px rgba(0,122,255,0.2);
         }
         button:disabled { background: #d1d1d6; box-shadow: none; }
 
-        #status { 
-            margin-top: 20px; 
-            font-size: 14px; 
-            color: var(--text-sub); 
-            text-align: center;
-        }
-
-        .preview-box { 
-            margin-top: 30px; 
-            padding-top: 20px; 
-            border-top: 1px solid #eee;
-            display: none; 
-        }
-        
-        video { 
-            width: 100%; 
-            border-radius: 12px; 
-            background: #000;
-        }
-
-        .download-btn {
-            display: block;
-            text-align: center;
-            margin-top: 20px;
-            color: var(--primary-color);
-            text-decoration: none;
-            font-weight: 600;
-            padding: 10px;
-            font-size: 16px;
-        }
+        #status { margin-top: 15px; font-size: 13px; color: #8e8e93; text-align: center; }
+        .preview-box { margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; display: none; }
+        video { width: 100%; border-radius: 12px; background: #000; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>圖片轉影片</h2>
-    <p class="subtitle">將您的圖片轉換為 3 秒 MP4 影片</p>
+    <h2>圖片加字轉影片</h2>
+    <p class="subtitle">自訂文字位子、大小與畫質</p>
 
     <div class="input-group">
-        <label>選擇來源圖片</label>
+        <label>1. 選擇圖片</label>
         <input type="file" id="uploader" accept="image/*">
     </div>
 
     <div class="input-group">
-        <label>輸出畫質設定</label>
+        <label>2. 輸入影片文字</label>
+        <input type="text" id="videoText" placeholder="請輸入文字...">
+        
+        <div class="slider-box">
+            <div class="slider-row">
+                <label>文字大小</label>
+                <input type="range" id="fontSize" min="10" max="200" value="60">
+                <span class="val-display" id="fontSizeVal">60</span>
+            </div>
+            <div class="slider-row">
+                <label>左右位置</label>
+                <input type="range" id="posX" min="0" max="100" value="50">
+                <span class="val-display" id="posXVal">50%</span>
+            </div>
+            <div class="slider-row">
+                <label>上下位置</label>
+                <input type="range" id="posY" min="0" max="100" value="50">
+                <span class="val-display" id="posYVal">50%</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="input-group">
+        <label>3. 輸出畫質</label>
         <select id="qualitySelect">
-            <option value="480">480p (速度最快)</option>
-            <option value="720" selected>720p (標準高清)</option>
-            <option value="1080">1080p (全高清)</option>
+            <option value="480">480p</option>
+            <option value="720" selected>720p</option>
+            <option value="1080">1080p</option>
         </select>
     </div>
 
-    <button id="convertBtn">開始轉換影片</button>
+    <button id="convertBtn">生成影片 (需下載字體檔)</button>
     <p id="status">準備就緒</p>
 
     <div class="preview-box" id="previewBox">
         <video id="videoPreview" controls></video>
-        <a id="downloadLink" class="download-btn">⬇️ 下載轉換後的影片</a>
+        <a id="downloadLink" style="display:block; text-align:center; margin-top:15px; color:#007AFF; text-decoration:none; font-weight:600;">⬇️ 下載影片</a>
     </div>
 </div>
 
 <script>
     const { createFFmpeg, fetchFile } = FFmpeg;
-    const ffmpeg = createFFmpeg({ 
-        log: true,
-        corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
-    });
+    const ffmpeg = createFFmpeg({ log: true });
+
+    // 更新滑桿數值顯示
+    const bindSlider = (id) => {
+        const el = document.getElementById(id);
+        const display = document.getElementById(id + 'Val');
+        el.oninput = () => display.innerText = el.value + (id.includes('pos') ? '%' : '');
+    };
+    ['fontSize', 'posX', 'posY'].forEach(bindSlider);
 
     const convertBtn = document.getElementById('convertBtn');
-    const uploader = document.getElementById('uploader');
-    const status = document.getElementById('status');
-    const qualitySelect = document.getElementById('qualitySelect');
-
+    
     convertBtn.onclick = async () => {
+        const uploader = document.getElementById('uploader');
         if (uploader.files.length === 0) return alert('請選擇圖片');
         
         const file = uploader.files[0];
-        const targetHeight = qualitySelect.value;
-        
+        const text = document.getElementById('videoText').value;
+        const size = document.getElementById('fontSize').value;
+        const xPct = document.getElementById('posX').value / 100;
+        const yPct = document.getElementById('posY').value / 100;
+        const h = document.getElementById('qualitySelect').value;
+
         convertBtn.disabled = true;
-        status.innerText = '正在初始化處理引擎...';
-
+        
         try {
-            if (!ffmpeg.isLoaded()) await ffmpeg.load();
-            
-            status.innerText = '正在處理檔案...';
-            const { name } = file;
-            ffmpeg.FS('writeFile', name, await fetchFile(file));
+            if (!ffmpeg.isLoaded()) {
+                status.innerText = '正在初始化引擎...';
+                await ffmpeg.load();
+            }
 
-            status.innerText = `製作中 (${targetHeight}p)... 請稍候`;
+            // 下載並載入字體 (中文字體較大，這是必要的步驟)
+            status.innerText = '正在載入中文字體...';
+            const fontUrl = 'https://raw.githubusercontent.com/googlefonts/noto-cjk/main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Bold.otf';
+            ffmpeg.FS('writeFile', 'font.otf', await fetchFile(fontUrl));
+
+            status.innerText = '正在讀取圖片...';
+            ffmpeg.FS('writeFile', 'input.img', await fetchFile(file));
+
+            status.innerText = '正在合成影片與文字...';
             
+            // FFmpeg 指令：
+            // x=(w-tw)*xPct, y=(h-th)*yPct 實現精準的百分比定位
             await ffmpeg.run(
-                '-loop', '1', 
-                '-i', name, 
-                '-c:v', 'libx264', 
-                '-t', '3', 
-                '-vf', `scale=-2:${targetHeight}`, 
-                '-pix_fmt', 'yuv420p', 
-                'output.mp4'
+                '-loop', '1', '-i', 'input.img',
+                '-t', '3',
+                '-vf', `scale=-2:${h},drawtext=fontfile=font.otf:text='${text}':fontcolor=white:fontsize=${size}:x=(w-tw)*${xPct}:y=(h-th)*${yPct}`,
+                '-pix_fmt', 'yuv420p',
+                'out.mp4'
             );
 
-            const data = ffmpeg.FS('readFile', 'output.mp4');
-            const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+            const data = ffmpeg.FS('readFile', 'out.mp4');
+            const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
             
             document.getElementById('previewBox').style.display = 'block';
-            document.getElementById('videoPreview').src = videoUrl;
-            document.getElementById('downloadLink').href = videoUrl;
-            document.getElementById('downloadLink').download = `video_${targetHeight}p.mp4`;
-            
-            status.innerText = '✅ 轉換完成';
-            document.getElementById('previewBox').scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('videoPreview').src = url;
+            document.getElementById('downloadLink').href = url;
+            document.getElementById('downloadLink').download = 'video_with_text.mp4';
+            status.innerText = '✅ 生成完成！';
 
         } catch (e) {
             console.error(e);
-            status.innerText = '❌ 發生錯誤，請重試。';
+            status.innerText = '❌ 發生錯誤（可能是手機記憶體不足）';
         } finally {
             convertBtn.disabled = false;
         }
