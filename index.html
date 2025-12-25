@@ -3,45 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>手機快速轉影片</title>
+    <title>圖片轉影片</title>
     <script src="coi-serviceworker.js"></script>
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
         :root {
-            --primary-color: #007AFF; /* iOS Blue */
-            --bg-color: #f2f2f7;
+            --primary-color: #007AFF; 
+            --text-main: #1c1c1e;
+            --text-sub: #8e8e93;
+            --input-bg: #ffffff;
         }
+        
+        /* 移除卡片感，改為純色背景直接鋪滿 */
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            background-color: var(--bg-color); 
+            background-color: #ffffff; /* 或者使用 #f9f9f9 */
             margin: 0; 
-            display: flex; 
-            justify-content: center; 
             padding: 20px;
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
         }
+
         .container { 
-            background: white; 
-            padding: 24px; 
-            border-radius: 20px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05); 
             width: 100%; 
-            max-width: 400px; 
+            max-width: 500px; 
+            padding-top: 10px;
         }
-        h2 { color: #000; font-size: 22px; margin-bottom: 8px; text-align: center; }
-        .subtitle { color: #8e8e93; font-size: 14px; text-align: center; margin-bottom: 24px; }
+
+        h2 { font-size: 24px; margin-bottom: 8px; text-align: left; font-weight: 700; }
+        .subtitle { color: var(--text-sub); font-size: 14px; text-align: left; margin-bottom: 30px; }
         
-        /* 表單樣式 */
-        .input-group { margin-bottom: 20px; }
-        label { display: block; font-weight: 600; margin-bottom: 8px; color: #333; font-size: 14px; }
+        .input-group { margin-bottom: 24px; }
+        label { display: block; font-weight: 600; margin-bottom: 10px; font-size: 15px; }
         
+        /* 讓輸入框更有質感 */
         input[type="file"], select {
             width: 100%;
-            padding: 12px;
-            border: 1px solid #d1d1d6;
-            border-radius: 10px;
+            padding: 14px;
+            border: 1px solid #e5e5ea;
+            border-radius: 12px;
             box-sizing: border-box;
-            font-size: 16px; /* 防止 iOS 縮放 */
-            background-color: #fff;
+            font-size: 16px;
+            background-color: #f2f2f7; /* 淺灰色背景 */
+            appearance: none; /* 移除預設樣式 */
         }
 
         button { 
@@ -54,40 +59,40 @@
             font-size: 17px; 
             font-weight: 600;
             cursor: pointer; 
-            transition: opacity 0.2s; 
+            margin-top: 10px;
+            box-shadow: 0 4px 15px rgba(0,122,255,0.2);
         }
-        button:disabled { background: #aeaeb2; cursor: not-allowed; }
-        button:active { opacity: 0.7; }
+        button:disabled { background: #d1d1d6; box-shadow: none; }
 
         #status { 
-            margin-top: 16px; 
-            font-size: 13px; 
-            color: #8e8e93; 
+            margin-top: 20px; 
+            font-size: 14px; 
+            color: var(--text-sub); 
             text-align: center;
-            min-height: 1.2em;
         }
 
-        /* 預覽區塊 */
         .preview-box { 
-            margin-top: 24px; 
-            border-top: 1px solid #e5e5ea; 
-            padding-top: 24px; 
+            margin-top: 30px; 
+            padding-top: 20px; 
+            border-top: 1px solid #eee;
             display: none; 
         }
+        
         video { 
             width: 100%; 
             border-radius: 12px; 
             background: #000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
+
         .download-btn {
             display: block;
             text-align: center;
-            margin-top: 15px;
+            margin-top: 20px;
             color: var(--primary-color);
             text-decoration: none;
             font-weight: 600;
             padding: 10px;
+            font-size: 16px;
         }
     </style>
 </head>
@@ -95,28 +100,28 @@
 
 <div class="container">
     <h2>圖片轉影片</h2>
-    <p class="subtitle">生成 3 秒高品質 MP4 影片</p>
+    <p class="subtitle">將您的圖片轉換為 3 秒 MP4 影片</p>
 
     <div class="input-group">
-        <label>1. 選擇圖片</label>
+        <label>選擇來源圖片</label>
         <input type="file" id="uploader" accept="image/*">
     </div>
 
     <div class="input-group">
-        <label>2. 選擇輸出畫質</label>
+        <label>輸出畫質設定</label>
         <select id="qualitySelect">
             <option value="480">480p (速度最快)</option>
             <option value="720" selected>720p (標準高清)</option>
-            <option value="1080">1080p (全高清 - 處理較慢)</option>
+            <option value="1080">1080p (全高清)</option>
         </select>
     </div>
 
-    <button id="convertBtn">開始轉換</button>
+    <button id="convertBtn">開始轉換影片</button>
     <p id="status">準備就緒</p>
 
     <div class="preview-box" id="previewBox">
         <video id="videoPreview" controls></video>
-        <a id="downloadLink" class="download-btn">⬇️ 儲存影片到相簿</a>
+        <a id="downloadLink" class="download-btn">⬇️ 下載轉換後的影片</a>
     </div>
 </div>
 
@@ -133,25 +138,23 @@
     const qualitySelect = document.getElementById('qualitySelect');
 
     convertBtn.onclick = async () => {
-        if (uploader.files.length === 0) return alert('請選擇一張圖片');
+        if (uploader.files.length === 0) return alert('請選擇圖片');
         
         const file = uploader.files[0];
         const targetHeight = qualitySelect.value;
         
         convertBtn.disabled = true;
-        status.innerText = '正在啟動處理引擎...';
+        status.innerText = '正在初始化處理引擎...';
 
         try {
             if (!ffmpeg.isLoaded()) await ffmpeg.load();
             
-            status.innerText = '正在讀取檔案...';
+            status.innerText = '正在處理檔案...';
             const { name } = file;
             ffmpeg.FS('writeFile', name, await fetchFile(file));
 
-            status.innerText = `正在生成 ${targetHeight}p 影片...請勿關閉分頁`;
+            status.innerText = `製作中 (${targetHeight}p)... 請稍候`;
             
-            // 指令解釋：
-            // scale=-2:高度 -> -2 會確保寬度按比例縮放且是 2 的倍數（h.264 限制）
             await ffmpeg.run(
                 '-loop', '1', 
                 '-i', name, 
@@ -170,13 +173,12 @@
             document.getElementById('downloadLink').href = videoUrl;
             document.getElementById('downloadLink').download = `video_${targetHeight}p.mp4`;
             
-            status.innerText = '✅ 轉換成功！';
-            // 自動滾動到預覽位置
+            status.innerText = '✅ 轉換完成';
             document.getElementById('previewBox').scrollIntoView({ behavior: 'smooth' });
 
         } catch (e) {
             console.error(e);
-            status.innerText = '❌ 出錯了，請嘗試較低畫質或更換圖片。';
+            status.innerText = '❌ 發生錯誤，請重試。';
         } finally {
             convertBtn.disabled = false;
         }
