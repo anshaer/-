@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>圖片轉 480P 影片</title>
+    <title>3秒真影片</title>
     <script src="coi-serviceworker.js"></script>
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
@@ -20,8 +20,10 @@
 <body>
 
 <div class="card">
-    <h2>圖片轉 480P 影片</h2>
-    <p>生成 3 秒 MP4 格式</p>
+    <h2>圖片轉影片（手機用）</h2>
+    <p>生成 3 秒 MP4（480p)</p>
+    <p>生成速度依手機處理性能決定</p>
+    <p>一般處理時間約30-180秒</p>
     <input type="file" id="uploader" accept="image/*" style="margin-bottom: 20px;"><br>
     <button id="convertBtn">開始轉換 (480P)</button>
     <p id="status">準備就緒</p>
