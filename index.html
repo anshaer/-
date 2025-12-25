@@ -17,27 +17,29 @@
         label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; color: #333; }
         
         input[type="text"], input[type="file"], select {
-            width: 100%; padding: 12px; border: 1px solid #e5e5ea; border-radius: 10px;
-            box-sizing: border-box; font-size: 16px; background: var(--bg-gray);
+            width: 100%; padding: 14px; border: 1px solid #e5e5ea; border-radius: 12px;
+            box-sizing: border-box; font-size: 16px; background: var(--bg-gray); appearance: none;
         }
 
-        /* 滑桿樣式 */
         .slider-box { background: var(--bg-gray); padding: 15px; border-radius: 12px; margin-top: 10px; }
-        .slider-row { display: flex; align-items: center; margin-bottom: 10px; }
-        .slider-row label { margin-bottom: 0; width: 80px; flex-shrink: 0; }
-        input[type="range"] { flex-grow: 1; margin-right: 10px; }
-        .val-display { width: 40px; font-size: 12px; color: #666; text-align: right; }
+        .slider-row { display: flex; align-items: center; margin-bottom: 12px; }
+        .slider-row label { margin-bottom: 0; width: 70px; flex-shrink: 0; font-size: 13px; }
+        input[type="range"] { flex-grow: 1; margin-right: 10px; accent-color: var(--primary-color); }
+        .val-display { width: 45px; font-size: 12px; color: #666; text-align: right; font-variant-numeric: tabular-nums; }
 
         button { 
             background: var(--primary-color); color: white; border: none; width: 100%;
             padding: 16px; border-radius: 14px; font-size: 17px; font-weight: 600;
-            margin-top: 20px; box-shadow: 0 4px 15px rgba(0,122,255,0.2);
+            margin-top: 20px; transition: background 0.2s;
         }
-        button:disabled { background: #d1d1d6; box-shadow: none; }
+        button:disabled { background: #d1d1d6; }
 
-        #status { margin-top: 15px; font-size: 13px; color: #8e8e93; text-align: center; }
+        #statusDisplay { 
+            margin-top: 20px; font-size: 14px; color: #007AFF; text-align: center; 
+            font-weight: 500; min-height: 20px;
+        }
         .preview-box { margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; display: none; }
-        video { width: 100%; border-radius: 12px; background: #000; }
+        video { width: 100%; border-radius: 12px; background: #000; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
@@ -53,12 +55,12 @@
 
     <div class="input-group">
         <label>2. 輸入影片文字</label>
-        <input type="text" id="videoText" placeholder="請輸入文字...">
+        <input type="text" id="videoText" placeholder="請在此輸入文字內容...">
         
         <div class="slider-box">
             <div class="slider-row">
                 <label>文字大小</label>
-                <input type="range" id="fontSize" min="10" max="200" value="60">
+                <input type="range" id="fontSize" min="20" max="150" value="60">
                 <span class="val-display" id="fontSizeVal">60</span>
             </div>
             <div class="slider-row">
@@ -77,18 +79,18 @@
     <div class="input-group">
         <label>3. 輸出畫質</label>
         <select id="qualitySelect">
-            <option value="480">480p</option>
-            <option value="720" selected>720p</option>
-            <option value="1080">1080p</option>
+            <option value="480">480p (最流暢)</option>
+            <option value="720" selected>720p (標準)</option>
+            <option value="1080">1080p (全高清)</option>
         </select>
     </div>
 
-    <button id="convertBtn">生成影片 (需下載字體檔)</button>
-    <p id="status">準備就緒</p>
+    <button id="convertBtn">開始生成影片</button>
+    <p id="statusDisplay">系統準備就緒</p>
 
     <div class="preview-box" id="previewBox">
         <video id="videoPreview" controls></video>
-        <a id="downloadLink" style="display:block; text-align:center; margin-top:15px; color:#007AFF; text-decoration:none; font-weight:600;">⬇️ 下載影片</a>
+        <a id="downloadLink" style="display:block; text-align:center; margin-top:15px; color:#007AFF; text-decoration:none; font-weight:600; padding: 10px;">⬇️ 下載影片到手機</a>
     </div>
 </div>
 
@@ -96,22 +98,26 @@
     const { createFFmpeg, fetchFile } = FFmpeg;
     const ffmpeg = createFFmpeg({ log: true });
 
-    // 更新滑桿數值顯示
-    const bindSlider = (id) => {
+    // 更新滑桿數值顯示的函數
+    function updateVal(id) {
         const el = document.getElementById(id);
         const display = document.getElementById(id + 'Val');
-        el.oninput = () => display.innerText = el.value + (id.includes('pos') ? '%' : '');
-    };
-    ['fontSize', 'posX', 'posY'].forEach(bindSlider);
+        display.innerText = el.value + (id.includes('pos') ? '%' : '');
+    }
+
+    ['fontSize', 'posX', 'posY'].forEach(id => {
+        document.getElementById(id).oninput = () => updateVal(id);
+    });
 
     const convertBtn = document.getElementById('convertBtn');
-    
+    const statusDisplay = document.getElementById('statusDisplay');
+
     convertBtn.onclick = async () => {
         const uploader = document.getElementById('uploader');
-        if (uploader.files.length === 0) return alert('請選擇圖片');
+        if (uploader.files.length === 0) return alert('請先選擇圖片');
         
         const file = uploader.files[0];
-        const text = document.getElementById('videoText').value;
+        const text = document.getElementById('videoText').value || ' ';
         const size = document.getElementById('fontSize').value;
         const xPct = document.getElementById('posX').value / 100;
         const yPct = document.getElementById('posY').value / 100;
@@ -121,42 +127,43 @@
         
         try {
             if (!ffmpeg.isLoaded()) {
-                status.innerText = '正在初始化引擎...';
+                statusDisplay.innerText = '⏳ 正在初始化 FFmpeg 引擎...';
                 await ffmpeg.load();
             }
 
-            // 下載並載入字體 (中文字體較大，這是必要的步驟)
-            status.innerText = '正在載入中文字體...';
+            statusDisplay.innerText = '⏳ 正在載入中文字體 (僅需一次)...';
             const fontUrl = 'https://raw.githubusercontent.com/googlefonts/noto-cjk/main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Bold.otf';
             ffmpeg.FS('writeFile', 'font.otf', await fetchFile(fontUrl));
 
-            status.innerText = '正在讀取圖片...';
+            statusDisplay.innerText = '⏳ 正在處理圖片檔案...';
             ffmpeg.FS('writeFile', 'input.img', await fetchFile(file));
 
-            status.innerText = '正在合成影片與文字...';
+            statusDisplay.innerText = `🚀 正在合成影片 (${h}p)... 請勿離開`;
             
-            // FFmpeg 指令：
-            // x=(w-tw)*xPct, y=(h-th)*yPct 實現精準的百分比定位
+            // 增加 borderw (邊框) 和 shadow (陰影) 讓文字更顯眼
             await ffmpeg.run(
                 '-loop', '1', '-i', 'input.img',
                 '-t', '3',
-                '-vf', `scale=-2:${h},drawtext=fontfile=font.otf:text='${text}':fontcolor=white:fontsize=${size}:x=(w-tw)*${xPct}:y=(h-th)*${yPct}`,
+                '-vf', `scale=-2:${h},drawtext=fontfile=font.otf:text='${text}':fontcolor=white:fontsize=${size}:shadowcolor=black@0.6:shadowx=4:shadowy=4:x=(w-tw)*${xPct}:y=(h-th)*${yPct}`,
                 '-pix_fmt', 'yuv420p',
                 'out.mp4'
             );
 
+            statusDisplay.innerText = '⌛ 正在打包影片內容...';
             const data = ffmpeg.FS('readFile', 'out.mp4');
             const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
             
             document.getElementById('previewBox').style.display = 'block';
             document.getElementById('videoPreview').src = url;
             document.getElementById('downloadLink').href = url;
-            document.getElementById('downloadLink').download = 'video_with_text.mp4';
-            status.innerText = '✅ 生成完成！';
+            document.getElementById('downloadLink').download = `video_${h}p.mp4`;
+            
+            statusDisplay.innerText = '✅ 影片生成完成！';
+            document.getElementById('previewBox').scrollIntoView({ behavior: 'smooth' });
 
         } catch (e) {
             console.error(e);
-            status.innerText = '❌ 發生錯誤（可能是手機記憶體不足）';
+            statusDisplay.innerText = '❌ 轉換失敗，請重新嘗試或降低畫質。';
         } finally {
             convertBtn.disabled = false;
         }
