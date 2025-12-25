@@ -2,82 +2,92 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>圖片轉 3 秒 MP4 工具</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圖片轉 480P 影片</title>
+    <script src="coi-serviceworker.js"></script>
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
-        .container { max-width: 600px; margin: auto; border: 1px solid #ccc; padding: 20px; border-radius: 8px; }
-        #status { color: blue; margin-top: 10px; }
-        video { width: 100%; margin-top: 20px; display: none; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 90%; max-width: 500px; text-align: center; }
+        h2 { color: #1a73e8; }
+        .preview-box { margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px; display: none; }
+        video, img { width: 100%; max-width: 400px; border-radius: 8px; margin-top: 10px; border: 1px solid #ddd; }
+        button { background: #1a73e8; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; transition: 0.3s; }
+        button:disabled { background: #ccc; }
+        #status { margin-top: 15px; font-size: 14px; color: #666; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>圖片轉 3 秒 MP4</h2>
-    <input type="file" id="imageInput" accept="image/*">
-    <button onclick="convertToVideo()">開始轉換</button>
-    
-    <div id="status">準備就緒</div>
-    <video id="outputVideo" controls></video>
-    <br>
-    <a id="downloadBtn" style="display:none">下載 MP4</a>
+<div class="card">
+    <h2>圖片轉 480P 影片</h2>
+    <p>生成 3 秒 MP4 格式</p>
+    <input type="file" id="uploader" accept="image/*" style="margin-bottom: 20px;"><br>
+    <button id="convertBtn">開始轉換 (480P)</button>
+    <p id="status">準備就緒</p>
+
+    <div class="preview-box" id="previewBox">
+        <p>原始圖片預覽</p>
+        <img id="imgPreview">
+        <p>轉換後的 480P 影片</p>
+        <video id="videoPreview" controls></video>
+        <br>
+        <a id="downloadLink" style="display:inline-block; margin-top:10px; color:#1a73e8; text-decoration:none; font-weight:bold;">⬇️ 下載影片</a>
+    </div>
 </div>
 
 <script>
     const { createFFmpeg, fetchFile } = FFmpeg;
     const ffmpeg = createFFmpeg({ log: true });
 
-    async function convertToVideo() {
-        const fileInput = document.getElementById('imageInput');
-        const status = document.getElementById('status');
-        const videoEl = document.getElementById('outputVideo');
-        const downloadBtn = document.getElementById('downloadBtn');
+    const convertBtn = document.getElementById('convertBtn');
+    const uploader = document.getElementById('uploader');
+    const status = document.getElementById('status');
 
-        if (fileInput.files.length === 0) {
-            alert('請先選擇一張圖片');
-            return;
+    convertBtn.onclick = async () => {
+        if (uploader.files.length === 0) return alert('請先選擇檔案');
+        
+        const file = uploader.files[0];
+        convertBtn.disabled = true;
+        status.innerText = '正在初始化 FFmpeg 引擎...';
+
+        try {
+            if (!ffmpeg.isLoaded()) await ffmpeg.load();
+            
+            status.innerText = '正在讀取圖片並壓縮編碼...';
+            const { name } = file;
+            ffmpeg.FS('writeFile', name, await fetchFile(file));
+
+            // 關鍵指令說明：
+            // -vf "scale=-2:480"：強制高度 480 像素，寬度依比例縮放（-2 代表自動計算且必須為偶數）
+            // -pix_fmt yuv420p：確保手機和一般播放器能看
+            await ffmpeg.run(
+                '-loop', '1', 
+                '-i', name, 
+                '-c:v', 'libx264', 
+                '-t', '3', 
+                '-vf', 'scale=-2:480', 
+                '-pix_fmt', 'yuv420p', 
+                'output.mp4'
+            );
+
+            const data = ffmpeg.FS('readFile', 'output.mp4');
+            const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+            
+            document.getElementById('previewBox').style.display = 'block';
+            document.getElementById('imgPreview').src = URL.createObjectURL(file);
+            document.getElementById('videoPreview').src = videoUrl;
+            document.getElementById('downloadLink').href = videoUrl;
+            document.getElementById('downloadLink').download = 'compressed_480p.mp4';
+            
+            status.innerText = '轉換完成！';
+        } catch (e) {
+            console.error(e);
+            status.innerText = '轉換出錯，請檢查圖片格式。';
+        } finally {
+            convertBtn.disabled = false;
         }
-
-        status.innerText = '正在載入核心組件...';
-        if (!ffmpeg.isLoaded()) await ffmpeg.load();
-
-        const file = fileInput.files[0];
-        const fileName = 'input_image.png';
-        
-        status.innerText = '正在處理影片...';
-        
-        // 1. 將檔案寫入 FFmpeg 虛擬檔案系統
-        ffmpeg.FS('writeFile', fileName, await fetchFile(file));
-
-        // 2. 執行指令：-loop 1 (循環圖片) -t 3 (持續3秒) 
-        // 使用 libx264 編碼，確保大多數播放器相容
-        await ffmpeg.run(
-            '-loop', '1', 
-            '-i', fileName, 
-            '-c:v', 'libx264', 
-            '-t', '3', 
-            '-pix_fmt', 'yuv420p', 
-            '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2', // 寬高必須是2的倍數
-            'output.mp4'
-        );
-
-        // 3. 讀取產出的檔案
-        const data = ffmpeg.FS('readFile', 'output.mp4');
-
-        // 4. 建立 URL 並顯示
-        const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
-        videoEl.src = videoUrl;
-        videoEl.style.display = 'block';
-        
-        downloadBtn.href = videoUrl;
-        downloadBtn.download = 'generated_video.mp4';
-        downloadBtn.innerText = '下載產出的 3 秒影片';
-        downloadBtn.style.display = 'block';
-        
-        status.innerText = '轉換完成！';
-    }
+    };
 </script>
-
 </body>
 </html>
