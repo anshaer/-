@@ -2,15 +2,15 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>圖片轉 GIF - 效能修正版</title>
+    <title>圖片轉 GIF - 效能終極修正</title>
     <script src="gifshot.min.js"></script>
     <style>
         body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
         .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 350px; text-align: center; }
         .status { background: #d4edda; color: #155724; padding: 10px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; }
         button { background: #007bff; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
-        button:disabled { background: #ccc; }
-        #tip { margin: 10px 0; font-size: 13px; color: #666; }
+        button:disabled { background: #ccc; cursor: wait; }
+        #tip { margin: 10px 0; font-size: 13px; color: #666; min-height: 20px; }
         img { max-width: 100%; margin-top: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
     </style>
 </head>
@@ -19,14 +19,14 @@
 <div class="card">
     <div class="status">✅ 引擎載入成功</div>
     <input type="file" id="picInput" accept="image/*">
-    <p id="tip">請選取圖片後點擊轉換</p>
-    <button id="runBtn">開始轉換 (已優化讀取)</button>
+    <p id="tip">建議測試 1MB 以內的圖片</p>
+    <button id="runBtn">開始轉換 (急速優化版)</button>
 
     <div id="result" style="display:none;">
         <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
         <div id="gifArea"></div>
         <br>
-        <a id="save" download="output.gif"><button style="background:#28a745">下載 GIF 檔案</button></a>
+        <a id="save" download="output.gif"><button style="background:#28a745">儲存檔案</button></a>
     </div>
 </div>
 
@@ -38,48 +38,58 @@
         const btn = this;
         const tip = document.getElementById('tip');
         btn.disabled = true;
-        tip.innerText = "⏳ 正在處理中 (已開啟軟體渲染)...";
+        tip.innerText = "⚡ 正在急速重組像素 (請稍候)...";
 
-        // 預處理：手動縮圖並套用 willReadFrequently
-        const processedImg = await getOptimizedImage(file);
+        try {
+            // 1. 強制將圖片縮小到 300px 以內，徹底解決 Canvas 讀取壓力
+            const tinyImg = await shrinkToTiny(file, 300);
 
-        gifshot.createGIF({
-            images: [processedImg],
-            gifWidth: 400,
-            gifHeight: 400,
-            numFrames: 1,
-            sampleInterval: 20 // 兼顧速度與品質
-        }, function(obj) {
-            if (!obj.error) {
-                document.getElementById('gifArea').innerHTML = `<img src="${obj.image}">`;
-                document.getElementById('save').href = obj.image;
-                document.getElementById('result').style.display = "block";
-                tip.innerText = "✅ 轉換完成！";
-            } else {
-                tip.innerText = "❌ 錯誤：" + obj.error;
-            }
+            // 2. 使用 gifshot 生成 (因為圖片變得很小，運算會變極快)
+            gifshot.createGIF({
+                images: [tinyImg],
+                gifWidth: 300,
+                gifHeight: 300,
+                numFrames: 1,
+                sampleInterval: 50 // 大幅提高取樣間距，犧牲一點細節換取不卡死
+            }, function(obj) {
+                if (!obj.error) {
+                    document.getElementById('gifArea').innerHTML = `<img src="${obj.image}">`;
+                    document.getElementById('save').href = obj.image;
+                    document.getElementById('result').style.display = "block";
+                    tip.innerText = "✅ 轉換完成！";
+                } else {
+                    tip.innerText = "❌ 轉換失敗：" + obj.error;
+                }
+                btn.disabled = false;
+            });
+        } catch (err) {
+            tip.innerText = "❌ 處理過程出錯";
             btn.disabled = false;
-        });
+        }
     };
 
-    // 關鍵函數：套用您截圖中提到的 willReadFrequently 優化
-    function getOptimizedImage(file) {
+    // 此函數會將任何圖片強制縮小到指定的 size 內
+    function shrinkToTiny(file, size) {
         return new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    // 正確套用 willReadFrequently 選項
+                    // 同時解決您截圖中的 willReadFrequently 警告
                     const ctx = canvas.getContext('2d', { willReadFrequently: true });
                     
-                    // 設定適中尺寸，避免運算過量
-                    canvas.width = 400;
-                    canvas.height = 400;
+                    // 等比例縮放
+                    let w = img.width, h = img.height;
+                    if (w > h) { h = (h / w) * size; w = size; } 
+                    else { w = (w / h) * size; h = size; }
                     
-                    // 繪製圖片
-                    ctx.drawImage(img, 0, 0, 400, 400);
-                    resolve(canvas.toDataURL('image/png'));
+                    canvas.width = w;
+                    canvas.height = h;
+                    ctx.drawImage(img, 0, 0, w, h);
+                    
+                    // 轉為低品質的 JPEG 數據供 gifshot 處理，速度最快
+                    resolve(canvas.toDataURL('image/jpeg', 0.5));
                 };
                 img.src = e.target.result;
             };
