@@ -3,17 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>圖片轉 GIF - 本機執行版</title>
-    
+    <title>圖片轉 GIF - 急速效能版</title>
     <script src="gifshot.min.js"></script>
-    
     <style>
         body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 400px; text-align: center; }
-        .status { padding: 10px; margin-bottom: 10px; border-radius: 5px; font-size: 14px; }
-        .ok { background: #d4edda; color: #155724; }
-        .err { background: #f8d7da; color: #721c24; }
-        input[type="file"] { margin: 20px 0; }
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        .status { padding: 10px; margin-bottom: 15px; border-radius: 8px; font-size: 14px; background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         button { background: #007bff; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
         button:disabled { background: #ccc; }
         #result img { max-width: 100%; margin-top: 20px; border-radius: 8px; }
@@ -23,64 +18,76 @@
 
 <div class="card">
     <h2>單圖轉 GIF</h2>
-    
-    <div id="check" class="status">檢查中...</div>
+    <div id="check" class="status">✅ 引擎已就緒</div>
 
     <input type="file" id="picInput" accept="image/*">
-    <p id="tip" style="color: #666; font-size: 13px;">請選取一張圖片</p>
+    <p id="tip" style="color: #666; font-size: 13px;">建議選取小於 2MB 的圖片測試</p>
     
-    <button id="runBtn" disabled>請先載入元件</button>
+    <button id="runBtn">立即轉換 (急速模式)</button>
 
     <div id="result" style="display:none;">
         <hr>
         <div id="gifArea"></div>
         <br>
-        <a id="save" download="my.gif"><button style="background:#28a745">下載 GIF</button></a>
+        <a id="save" download="fast_output.gif"><button style="background:#28a745">下載檔案</button></a>
     </div>
 </div>
 
 <script>
-    // 自動檢查本地的 gifshot.min.js 有沒有放對位置
-    window.onload = function() {
-        if (typeof gifshot !== 'undefined') {
-            document.getElementById('check').innerText = "✅ 引擎載入成功 (本機檔案)";
-            document.getElementById('check').className = "status ok";
-            document.getElementById('runBtn').disabled = false;
-            document.getElementById('runBtn').innerText = "開始轉換";
-        } else {
-            document.getElementById('check').innerHTML = "❌ 找不到 gifshot.min.js<br><small>請確認檔案是否跟網頁放在同一個資料夾</small>";
-            document.getElementById('check').className = "status err";
-        }
-    };
-
-    document.getElementById('runBtn').onclick = function() {
+    document.getElementById('runBtn').onclick = async function() {
         const file = document.getElementById('picInput').files[0];
-        if (!file) { alert("未選取圖片"); return; }
+        if (!file) { alert("尚未選取圖片"); return; }
 
-        document.getElementById('tip').innerText = "⏳ 處理中...";
-        this.disabled = true;
+        const btn = this;
+        const tip = document.getElementById('tip');
+        btn.disabled = true;
+        tip.innerText = "⏳ 正在急速處理中...";
 
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            gifshot.createGIF({
-                images: [e.target.result],
-                gifWidth: 500,
-                gifHeight: 500,
-                numFrames: 1
-            }, function(obj) {
-                if (!obj.error) {
-                    document.getElementById('gifArea').innerHTML = `<img src="${obj.image}">`;
-                    document.getElementById('save').href = obj.image;
-                    document.getElementById('result').style.display = "block";
-                    document.getElementById('tip').innerText = "✅ 轉換成功";
-                } else {
-                    document.getElementById('tip').innerText = "❌ 錯誤：" + obj.error;
-                }
-                document.getElementById('runBtn').disabled = false;
-            });
-        };
-        reader.readAsDataURL(file);
+        // 1. 預處理：將大圖強制縮小，避免 gifshot 卡死
+        const lowResImage = await resizeImage(file, 500);
+
+        // 2. 執行 GIF 轉換
+        gifshot.createGIF({
+            images: [lowResImage],
+            gifWidth: 500,
+            gifHeight: 500,
+            numFrames: 1,
+            sampleInterval: 20, // 提高取樣間隔，大幅加快速度
+            numWorkers: 2       // 使用多執行緒處理
+        }, function(obj) {
+            if (!obj.error) {
+                document.getElementById('gifArea').innerHTML = `<img src="${obj.image}">`;
+                document.getElementById('save').href = obj.image;
+                document.getElementById('result').style.display = "block";
+                tip.innerText = "✅ 處理完成！";
+            } else {
+                tip.innerText = "❌ 錯誤：" + obj.error;
+            }
+            btn.disabled = false;
+        });
     };
+
+    // 縮圖函式：解決 Canvas2D 讀取過慢的問題
+    function resizeImage(file, maxSide) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let w = img.width, h = img.height;
+                    if (w > h) { if (w > maxSide) { h *= maxSide / w; w = maxSide; } }
+                    else { if (h > maxSide) { w *= maxSide / h; h = maxSide; } }
+                    canvas.width = w; canvas.height = h;
+                    const ctx = canvas.getContext('2d', { willReadFrequently: true }); // 加入此參數消除警告
+                    ctx.drawImage(img, 0, 0, w, h);
+                    resolve(canvas.toDataURL('image/jpeg', 0.7));
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
 </script>
 
 </body>
