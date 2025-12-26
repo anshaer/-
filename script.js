@@ -1,17 +1,16 @@
 const { createFFmpeg, fetchFile } = FFmpeg;
-const ffmpeg = createFFmpeg({ log: false }); // 關閉冗長日誌提升效能
+const ffmpeg = createFFmpeg({ log: true });
 
-let currentVideoFile = null;
+// 全域變數存儲多個生成的影片檔案
+let currentVideoFiles = [];
 
 const convertBtn = document.getElementById('convertBtn');
+const shareBtn = document.getElementById('shareBtn');
 const statusDisplay = document.getElementById('statusDisplay');
 const previewBox = document.getElementById('previewBox');
-const videoPreview = document.getElementById('videoPreview');
-const downloadLink = document.getElementById('downloadLink');
-const shareBtn = document.getElementById('shareBtn');
-const twitterBtn = document.getElementById('twitterBtn');
+const videoContainer = document.getElementById('videoContainer');
 
-// --- UI 輔助功能 ---
+// UI 事件處理 (維持原樣)
 function updateVal(id) {
     const el = document.getElementById(id);
     const display = document.getElementById(id + 'Val');
@@ -20,16 +19,16 @@ function updateVal(id) {
 ['fontSize', 'posX', 'posY'].forEach(id => {
     document.getElementById(id).oninput = () => updateVal(id);
 });
-document.getElementById('textColor').oninput = (e) => {
-    document.getElementById('colorHex').innerText = e.target.value.toUpperCase();
-};
 
-// --- 核心：影片生成 ---
+// --- 核心功能：生成影片 ---
+
 convertBtn.onclick = async () => {
     const uploader = document.getElementById('uploader');
-    if (uploader.files.length === 0) return alert('請先選擇圖片');
+    const files = uploader.files;
     
-    const file = uploader.files[0];
+    if (files.length === 0) return alert('請先選擇圖片');
+    if (files.length > 4) return alert('最多只能選擇 4 張圖片');
+
     const text = document.getElementById('videoText').value || ' ';
     const size = document.getElementById('fontSize').value;
     const color = document.getElementById('textColor').value;
@@ -38,68 +37,88 @@ convertBtn.onclick = async () => {
     const h = document.getElementById('qualitySelect').value;
 
     convertBtn.disabled = true;
-    previewBox.style.display = 'none';
+    videoContainer.innerHTML = ''; // 清空舊預覽
+    currentVideoFiles = []; // 清空舊檔案
     
     try {
         if (!ffmpeg.isLoaded()) {
-            statusDisplay.innerText = '⏳ 引擎啟動中...';
+            statusDisplay.innerText = '⏳ 正在初始化引擎...';
             await ffmpeg.load();
         }
 
-        statusDisplay.innerText = '⏳ 處理素材中...';
+        // 載入字體
+        statusDisplay.innerText = '⏳ 正在下載字體...';
         const fontUrl = 'https://raw.githubusercontent.com/googlefonts/noto-cjk/main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Bold.otf';
-        const [fData, iData] = await Promise.all([fetchFile(fontUrl), fetchFile(file)]);
-        
-        ffmpeg.FS('writeFile', 'f.otf', fData);
-        ffmpeg.FS('writeFile', 'i.img', iData);
+        const fontData = await fetchFile(fontUrl);
+        ffmpeg.FS('writeFile', 'font.otf', fontData);
 
-        statusDisplay.innerText = `🚀 正在轉碼 ${h}p 影片...`;
-        await ffmpeg.run(
-            '-loop', '1', '-i', 'i.img', '-t', '3',
-            '-vf', `scale=-2:${h},drawtext=fontfile=f.otf:text='${text}':fontcolor=${color}:fontsize=${size}:shadowcolor=black@0.4:shadowx=2:shadowy=2:x=(w-tw)*${xPct}:y=(h-th)*${yPct}`,
-            '-pix_fmt', 'yuv420p', 'out.mp4'
-        );
+        // 逐一處理圖片
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            statusDisplay.innerText = `🚀 正在處理第 ${i + 1}/${files.length} 個影片...`;
 
-        const data = ffmpeg.FS('readFile', 'out.mp4');
-        const videoBlob = new Blob([data.buffer], { type: 'video/mp4' });
-        const url = URL.createObjectURL(videoBlob);
-        
-        currentVideoFile = new File([videoBlob], `video_${Date.now()}.mp4`, { type: 'video/mp4' });
+            const imageData = await fetchFile(file);
+            const inputName = `input_${i}.img`;
+            const outputName = `out_${i}.mp4`;
 
-        videoPreview.src = url;
-        downloadLink.href = url;
-        downloadLink.download = `watermark_video.mp4`;
+            ffmpeg.FS('writeFile', inputName, imageData);
+
+            await ffmpeg.run(
+                '-loop', '1', '-i', inputName,
+                '-t', '3',
+                '-vf', `scale=-2:${h},drawtext=fontfile=font.otf:text='${text}':fontcolor=${color}:fontsize=${size}:shadowcolor=black@0.4:shadowx=2:shadowy=2:x=(w-tw)*${xPct}:y=(h-th)*${yPct}`,
+                '-pix_fmt', 'yuv420p',
+                outputName
+            );
+
+            const data = ffmpeg.FS('readFile', outputName);
+            const videoBlob = new Blob([data.buffer], { type: 'video/mp4' });
+            const videoFile = new File([videoBlob], `video_${i}_${Date.now()}.mp4`, { type: 'video/mp4' });
+            currentVideoFiles.push(videoFile);
+
+            // 建立預覽影片元素
+            const url = URL.createObjectURL(videoBlob);
+            const videoEl = document.createElement('video');
+            videoEl.src = url;
+            videoEl.controls = true;
+            videoEl.style.marginBottom = "15px";
+            videoContainer.appendChild(videoEl);
+
+            // 清理檔案系統避免記憶體溢位
+            ffmpeg.FS('unlink', inputName);
+            ffmpeg.FS('unlink', outputName);
+        }
+
         previewBox.style.display = 'block';
-        statusDisplay.innerText = '✅ 生成完畢！';
-        
+        statusDisplay.innerText = `✅ 成功完成 ${files.length} 個影片！`;
+        previewBox.scrollIntoView({ behavior: 'smooth' });
+
     } catch (e) {
-        statusDisplay.innerText = '❌ 發生錯誤，請重試。';
+        console.error(e);
+        statusDisplay.innerText = '❌ 發生錯誤，請縮小圖片或重整網頁。';
     } finally {
         convertBtn.disabled = false;
     }
 };
 
-// --- 分享功能 1：系統分享 (包含檔案) ---
-shareBtn.onclick = async () => {
-    if (!currentVideoFile) return;
-    const text = document.getElementById('videoText').value;
-    
-    if (navigator.canShare && navigator.canShare({ files: [currentVideoFile] })) {
-        try {
-            await navigator.share({
-                title: '我的影片作品',
-                text: `這是我製作的影片：${text}`,
-                files: [currentVideoFile]
-            });
-        } catch (e) { console.log('分享取消'); }
-    } else {
-        alert('此環境不支援檔案分享，請先下載影片。');
-    }
-};
+// --- 分享功能：一次分享 4 個檔案 ---
 
-// --- 分享功能 2：𝕏 (Twitter) 文字分享 ---
-twitterBtn.onclick = () => {
-    const text = document.getElementById('videoText').value;
-    const shareText = encodeURIComponent(`這是我製作的浮水印影片：${text}\n#圖片轉影片`);
-    window.open(`https://twitter.com/intent/tweet?text=${shareText}`, '_blank');
+shareBtn.onclick = async () => {
+    if (currentVideoFiles.length === 0) return;
+
+    const shareData = {
+        title: '我的作品集',
+        text: document.getElementById('videoText').value,
+        files: currentVideoFiles // 直接放入整個陣列
+    };
+
+    if (navigator.canShare && navigator.canShare({ files: currentVideoFiles })) {
+        try {
+            await navigator.share(shareData);
+        } catch (err) {
+            if (err.name !== 'AbortError') alert('分享失敗。');
+        }
+    } else {
+        alert('您的瀏覽器不支援多檔案分享，或超過檔案大小限制。');
+    }
 };
