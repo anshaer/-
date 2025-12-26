@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🎄 3秒真影片 - 專業版</title>
+    <title>🎄 3秒真影片 - 批次轉換工具</title>
     <script src="coi-serviceworker.js"></script>
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <link rel="stylesheet" href="style.css">
@@ -11,52 +11,75 @@
 <body>
 
 <div class="container">
-    <h2>圖片轉 3 秒影片</h2>
-    <p class="subtitle">設定浮水印、顏色與畫質，一鍵分享</p>
+    <header>
+        <h2>圖片轉 3 秒影片</h2>
+        <p class="subtitle">支援一次處理 4 張圖並同步分享</p>
+    </header>
 
     <div class="input-group">
-        <label>1. 選擇來源圖片</label>
-        <input type="file" id="uploader" accept="image/*">
+        <label for="uploader">1. 選擇來源圖片 (可選 1~4 張)</label>
+        <div class="file-custom-input">
+            <input type="file" id="uploader" accept="image/*" multiple>
+            <small style="color: #8e8e93; margin-top: 5px; display: block;">按住 Ctrl/Cmd 或長按可多選</small>
+        </div>
     </div>
 
     <div class="input-group">
-        <label>2. 文字與外觀設定</label>
+        <label>2. 浮水印與外觀設定</label>
         <input type="text" id="videoText" value="禁止盜用" placeholder="輸入文字內容...">
         
         <div class="slider-box">
             <div class="color-row">
                 <label>文字顏色</label>
                 <input type="color" id="textColor" value="#ffffff">
-                <span id="colorHex" style="font-size: 12px; color: #666;">#FFFFFF</span>
+                <span id="colorHex" class="val-display">#FFFFFF</span>
             </div>
-            <div class="slider-row"><label>文字大小</label><input type="range" id="fontSize" min="20" max="250" value="80"><span class="val-display" id="fontSizeVal">80</span></div>
-            <div class="slider-row"><label>左右位置</label><input type="range" id="posX" min="0" max="100" value="50"><span class="val-display" id="posXVal">50%</span></div>
-            <div class="slider-row"><label>上下位置</label><input type="range" id="posY" min="0" max="100" value="50"><span class="val-display" id="posYVal">50%</span></div>
+            
+            <div class="slider-row">
+                <label>文字大小</label>
+                <input type="range" id="fontSize" min="20" max="250" value="80">
+                <span class="val-display" id="fontSizeVal">80</span>
+            </div>
+            
+            <div class="slider-row">
+                <label>左右位置</label>
+                <input type="range" id="posX" min="0" max="100" value="50">
+                <span class="val-display" id="posXVal">50%</span>
+            </div>
+            
+            <div class="slider-row">
+                <label>上下位置</label>
+                <input type="range" id="posY" min="0" max="100" value="50">
+                <span class="val-display" id="posYVal">50%</span>
+            </div>
         </div>
     </div>
 
     <div class="input-group">
-        <label>3. 輸出畫質</label>
+        <label for="qualitySelect">3. 輸出畫質 (建議 720p 以確保多圖穩定)</label>
         <select id="qualitySelect">
-            <option value="480">480p (速度快)</option>
-            <option value="720" selected>720p (推薦)</option>
-            <option value="1080">1080p (高畫質)</option>
+            <option value="480">480p (速度最快)</option>
+            <option value="720" selected>720p (標準推薦)</option>
+            <option value="1080">1080p (檔案較大)</option>
         </select>
     </div>
 
-    <button id="convertBtn">生成影片</button>
-    <p id="statusDisplay">系統準備就緒</p>
+    <button id="convertBtn">開始批次生成影片</button>
+    <div id="statusDisplay">系統準備就緒</div>
+
+    <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
 
     <div class="preview-box" id="previewBox">
-        <video id="videoPreview" controls loop></video>
-        <div class="button-grid">
-            <a id="downloadLink" class="btn-action download">⬇️ 下載影片</a>
-            <button id="shareBtn" class="btn-action share">📤 系統分享</button>
-            <button id="twitterBtn" class="btn-action twitter">𝕏 分享文字至 X</button>
+        <label style="text-align: center; margin-bottom: 15px;">🎬 生成預覽</label>
+        
+        <div id="videoContainer" class="video-grid"></div>
+
+        <div class="action-buttons" style="margin-top: 25px;">
+            <button id="shareBtn" class="share-btn">📤 一次分享全部影片</button>
+            <p style="font-size: 12px; color: #8e8e93; text-align: center; margin-top: 10px;">
+                點擊上方按鈕可同時將所有影片分享至社群貼文
+            </p>
         </div>
-        <p style="font-size: 11px; color: #8e8e93; text-align: center; margin-top: 10px;">
-            提示：若 X 未出現在系統分享中，請先下載影片後再點擊 X 按鈕貼上文字。
-        </p>
     </div>
 </div>
 
