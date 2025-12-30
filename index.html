@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>響應式雙區塊網頁</title>
+    <style>
+        /* 移除預設邊距，讓內容填滿視窗 */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* 設定容器為 Flex 佈局 */
+        .container {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* 設定子網頁容器（iframe）的基礎樣式 */
+        iframe {
+            flex: 1; /* 平分空間 */
+            border: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* --- 核心邏輯：偵測螢幕方向 --- */
+
+        /* 橫屏 (Landscape)：左右切分 */
+        @media (orientation: landscape) {
+            .container {
+                flex-direction: row;
+            }
+        }
+
+        /* 縱屏 (Portrait)：上下切分 */
+        @media (orientation: portrait) {
+            .container {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <iframe src="ppp.html"></iframe>
+        <iframe src="ppm.html"></iframe>
+    </div>
+
+</body>
+</html>
