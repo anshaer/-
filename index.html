@@ -1,11 +1,12 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>AI 對抗設計工具 - 符號與文字遮罩版</title>
+    <title>AI 對抗設計工具 - 圖像遮罩版</title>
     <style>
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; display: flex; flex-direction: column; align-items: center; background: #1a1a1a; color: #eee; padding: 20px; }
-        .controls { background: #2c2c2c; padding: 20px; border-radius: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; width: 100%; max-width: 800px; border: 1px solid #444; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .controls { background: #2c2c2c; padding: 20px; border-radius: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; width: 100%; max-width: 750px; border: 1px solid #444; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .full-width { grid-column: span 2; }
         .section-title { font-weight: bold; color: #9b59b6; margin-top: 10px; border-bottom: 1px solid #444; padding-bottom: 5px; }
         .mode-selector { background: #3d3d3d; padding: 15px; border-radius: 8px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
@@ -28,50 +29,61 @@
 </head>
 <body>
 
-    <h2>🎨 AI 視覺對抗工具 (文字符號加強版)</h2>
+    <h2>🎨 AI 視覺對抗排版工具 (Masking Edition)</h2>
 
     <div class="controls">
         <div class="full-width">
-            <label>1. 上傳底圖：</label>
+            <label>1. 上傳圖片底圖：</label>
             <input type="file" id="upload" accept="image/*">
         </div>
         
-        <div class="full-width section-title">符號與遮罩設定</div>
-        <div class="full-width">
-            <label>自定義文字符號 (系統會隨機從中挑選字元作為遮罩)：</label>
-            <input type="text" id="customSymbols" value="■●✖⛰︎⬆︎⬇︎⬅︎➡︎✚✦♥❋❈⚡︎0123456789ABCDEF@#$%&">
+        <div class="mode-selector full-width">
+            <label style="width:100%"><span class="highlight">圖片呈現位置：</span></label>
+            <input type="radio" name="displayPos" id="posBoard" value="board" checked><label for="posBoard">圖片在板面 (符號變透明孔)</label>
+            <input type="radio" name="displayPos" id="posHole" value="hole"><label for="posHole">圖片在孔洞 (符號內顯圖)</label>
         </div>
 
         <div class="mode-selector full-width">
-            <label style="width:100%"><span class="highlight">呈現位置：</span></label>
-            <input type="radio" name="displayPos" id="posBoard" value="board" checked><label for="posBoard">圖片在底 (符號挖孔)</label>
-            <input type="radio" name="displayPos" id="posHole" value="hole"><label for="posHole">符號內顯圖 (镂空效果)</label>
+            <label style="width:100%">符號顏色模式 (僅「圖片在板面」模式有效)：</label>
+            <input type="radio" name="mode" id="modeHole" value="hole" checked><label for="modeHole">透明挖孔</label>
+            <input type="radio" name="mode" id="modeRandom" value="random"><label for="modeRandom">隨機顏色</label>
+            <input type="radio" name="mode" id="modeFixed" value="fixed"><label for="modeFixed">指定顏色</label>
+            <input type="color" id="fixedColorPicker" value="#ffffff">
         </div>
 
         <div>
-            <label>符號/文字大小: <span id="val-radius">25</span></label>
-            <input type="range" id="radius" min="5" max="150" value="25">
+            <label>符號大小: <span id="val-radius">25</span></label>
+            <input type="range" id="radius" min="10" max="100" value="25">
         </div>
         <div>
-            <label>分佈密度: <span id="val-spacing">35</span></label>
-            <input type="range" id="spacing" min="10" max="200" value="35">
+            <label>分布密度: <span id="val-spacing">40</span></label>
+            <input type="range" id="spacing" min="15" max="150" value="40">
         </div>
-        
-        <div class="full-width section-title">頂層文字保護</div>
+
+        <div class="full-width section-title">文字層強化設定</div>
         <div class="full-width">
-            <input type="text" id="overlayText" placeholder="輸入浮水印文字...">
+            <label>輸入干擾文字：</label>
+            <input type="text" id="overlayText" placeholder="輸入文字以中斷 AI 語義識別...">
         </div>
         <div>
-            <label>浮水印大小: <span id="val-fontSize">80</span></label>
-            <input type="range" id="fontSize" min="20" max="500" value="80">
+            <label>文字大小: <span id="val-fontSize">80</span></label>
+            <input type="range" id="fontSize" min="20" max="400" value="80">
         </div>
         <div>
-            <label>浮水印顏色：</label>
+            <label>文字顏色：</label>
             <input type="color" id="textColor" value="#ffffff" style="width:100%">
         </div>
+        <div>
+            <label>水平位置 (X): <span id="val-posX">50</span>%</label>
+            <input type="range" id="posX" min="0" max="100" value="50">
+        </div>
+        <div>
+            <label>垂直位置 (Y): <span id="val-posY">50</span>%</label>
+            <input type="range" id="posY" min="0" max="100" value="50">
+        </div>
         
-        <button id="re-random" class="btn-random full-width">重新排列符號隨機位移</button>
-        <button id="download" class="btn-download full-width">下載 PNG 結果</button>
+        <button id="re-random" class="btn-random">重新打亂隨機位移</button>
+        <button id="download" class="btn-download">下載干擾設計稿 (PNG)</button>
     </div>
 
     <canvas id="canvas"></canvas>
@@ -80,10 +92,9 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const upload = document.getElementById('upload');
-        const customSymbolsInput = document.getElementById('customSymbols');
         
-        // 控制項 ID 列表，用於自動監聽
-        const controls = ['radius', 'spacing', 'fontSize', 'textColor', 'overlayText', 'customSymbols'];
+        const controls = ['radius', 'spacing', 'fontSize', 'posX', 'posY', 'fixedColorPicker', 'textColor', 'overlayText'];
+        const shapes = ['■','●','✖','⛰︎','⬆︎','⬇︎','⬅︎','➡︎','◀︎','▶︎','✚','✦','♥','♣','♦','♠','❋','❈','⚡︎'];
         let img = new Image();
 
         upload.addEventListener('change', (e) => {
@@ -107,33 +118,37 @@
             });
         });
 
+        document.getElementsByName('mode').forEach(r => r.onchange = () => { if(img.src) draw(); });
         document.getElementsByName('displayPos').forEach(r => r.onchange = () => { if(img.src) draw(); });
         document.getElementById('re-random').onclick = () => { if(img.src) draw(); };
 
-        // 核心繪圖函數
-        function drawSymbols(sRadius, sSpacing, isMaskMode) {
-            const symbolString = customSymbolsInput.value || "●";
-            // 將字串轉為陣列以正確處理 Unicode 符號
-            const symbolArray = Array.from(symbolString);
-            
+        function getRandomColor() {
+            return `rgb(${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)})`;
+        }
+
+        // 繪製符號層的封裝函數
+        function drawSymbols(sRadius, sSpacing, mode, isMaskMode) {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.font = `${sRadius}px 'Arial', sans-serif`;
+            ctx.font = `${sRadius}px sans-serif`;
 
-            for (let y = 0; y < canvas.height + sSpacing; y += sSpacing) {
-                for (let x = 0; x < canvas.width + sSpacing; x += sSpacing) {
+            for (let y = -sSpacing; y < canvas.height + sSpacing; y += sSpacing) {
+                for (let x = -sSpacing; x < canvas.width + sSpacing; x += sSpacing) {
                     ctx.save();
-                    // 隨機位移增加混亂度
-                    const jitter = sSpacing * 0.4;
+                    const jitter = sSpacing * 0.35;
                     const dx = (Math.random() - 0.5) * jitter;
                     const dy = (Math.random() - 0.5) * jitter;
-                    
                     ctx.translate(x + dx, y + dy);
                     ctx.rotate(Math.random() * Math.PI * 2);
                     
-                    ctx.fillStyle = 'black'; 
-                    const char = symbolArray[Math.floor(Math.random() * symbolArray.length)];
-                    ctx.fillText(char, 0, 0);
+                    if (isMaskMode) {
+                        ctx.fillStyle = 'black'; // 遮罩模式下顏色不重要
+                    } else {
+                        if (mode === 'random') ctx.fillStyle = getRandomColor();
+                        else if (mode === 'fixed') ctx.fillStyle = document.getElementById('fixedColorPicker').value;
+                    }
+                    
+                    ctx.fillText(shapes[Math.floor(Math.random()*shapes.length)], 0, 0);
                     ctx.restore();
                 }
             }
@@ -144,46 +159,59 @@
             const sRadius = parseInt(document.getElementById('radius').value);
             const sSpacing = parseInt(document.getElementById('spacing').value);
             const fSize = parseInt(document.getElementById('fontSize').value);
+            const pX = parseInt(document.getElementById('posX').value) / 100;
+            const pY = parseInt(document.getElementById('posY').value) / 100;
             const txt = document.getElementById('overlayText').value;
             
+            let mode = 'hole';
+            document.getElementsByName('mode').forEach(r => { if(r.checked) mode = r.value; });
+
             let displayPos = 'board';
             document.getElementsByName('displayPos').forEach(r => { if(r.checked) displayPos = r.value; });
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             if (displayPos === 'board') {
-                // 模式 A：圖片在底，符號挖孔
+                // --- 傳統模式：圖片在底座 ---
                 ctx.globalCompositeOperation = 'source-over';
                 ctx.drawImage(img, 0, 0);
-                ctx.globalCompositeOperation = 'destination-out';
-                drawSymbols(sRadius, sSpacing, true);
+
+                if (mode === 'hole') {
+                    ctx.globalCompositeOperation = 'destination-out';
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                }
+                drawSymbols(sRadius, sSpacing, mode, false);
+
             } else {
-                // 模式 B：圖片只出現在符號裡 (镂空)
+                // --- 新模式：圖片只顯示在孔洞內 ---
+                // 1. 先畫符號（作為形狀載體）
                 ctx.globalCompositeOperation = 'source-over';
-                drawSymbols(sRadius, sSpacing, true);
+                drawSymbols(sRadius, sSpacing, 'fixed', true);
+
+                // 2. 使用 source-in 模式畫圖片，圖片只會出現在有符號的地方
                 ctx.globalCompositeOperation = 'source-in';
                 ctx.drawImage(img, 0, 0);
             }
 
-            // 最後畫上頂層浮水印文字
+            // --- 第三層：文字防護層 ---
             ctx.globalCompositeOperation = 'source-over';
             if (txt) {
                 ctx.font = `bold ${fSize}px sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                // 加個描邊增加可讀性/干擾度
-                ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-                ctx.lineWidth = fSize / 10;
-                ctx.strokeText(txt, canvas.width / 2, canvas.height / 2);
+                ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+                ctx.lineWidth = fSize / 8;
+                ctx.strokeText(txt, canvas.width * pX, canvas.height * pY);
                 ctx.fillStyle = document.getElementById('textColor').value;
-                ctx.fillText(txt, canvas.width / 2, canvas.height / 2);
+                ctx.fillText(txt, canvas.width * pX, canvas.height * pY);
             }
         }
 
         document.getElementById('download').onclick = () => {
             if (!img.src) return alert('請先上傳圖片');
             const link = document.createElement('a');
-            link.download = 'ai-adversarial-symbol-mask.png';
+            link.download = 'ai-protected-design.png';
             link.href = canvas.toDataURL('image/png');
             link.click();
         };
