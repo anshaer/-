@@ -2,11 +2,10 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>AI 對抗設計工具 - 影片與進度條版</title>
-    <script src="coi-serviceworker.js"></script>
+    <title>AI 對抗設計工具 - 圖像遮罩版</title>
     <style>
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; display: flex; flex-direction: column; align-items: center; background: #1a1a1a; color: #eee; padding: 20px; }
-        .controls { background: #2c2c2c; padding: 20px; border-radius: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; width: 100%; max-width: 750px; border: 1px solid #444; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; }
+        .controls { background: #2c2c2c; padding: 20px; border-radius: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; width: 100%; max-width: 750px; border: 1px solid #444; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .full-width { grid-column: span 2; }
         .section-title { font-weight: bold; color: #9b59b6; margin-top: 10px; border-bottom: 1px solid #444; padding-bottom: 5px; }
         .mode-selector { background: #3d3d3d; padding: 15px; border-radius: 8px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
@@ -23,36 +22,21 @@
         .btn-random { background: #34495e; color: white; }
         .btn-random:hover { background: #2c3e50; }
         .btn-download { background: #27ae60; color: white; }
-        .btn-download-mp4 { background: #3498db; color: white; margin-top: 10px; }
-        .btn-download:disabled, .btn-download-mp4:disabled { background: #555; cursor: not-allowed; }
-
-        /* 進度條遮罩 */
-        #progress-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); display: none;
-            flex-direction: column; justify-content: center; align-items: center;
-            z-index: 1000;
-        }
-        .progress-container { width: 300px; background: #444; border-radius: 20px; overflow: hidden; }
-        #progress-bar { width: 0%; height: 20px; background: #9b59b6; transition: width 0.1s; }
-        .progress-text { margin-top: 10px; font-size: 18px; }
-
+        .btn-download:hover { background: #219150; }
+        .btn-mp4 { background: #e67e22; color: white; }
+        .btn-mp4:hover { background: #d35400; }
+        .btn-mp4:disabled { background: #7f8c8d; cursor: not-allowed; }
         .highlight { color: #f1c40f; font-weight: bold; }
+        progress { width: 100%; height: 20px; margin-top: 10px; }
+        .progress-container { grid-column: span 2; display: none; }
+        .disabled { opacity: 0.5; pointer-events: none; }
     </style>
 </head>
 <body>
 
-    <h2>🎨 AI 視覺對抗工具 (Video & Masking)</h2>
+    <h2>🎨 AI 視覺對抗排版工具 (Masking Edition)</h2>
 
-    <div id="progress-overlay">
-        <div class="progress-text">影片製作中... <span id="progress-percent">0%</span></div>
-        <div class="progress-container">
-            <div id="progress-bar"></div>
-        </div>
-        <p style="color: #888; font-size: 12px; margin-top: 10px;">請勿關閉視窗，這可能需要幾十秒</p>
-    </div>
-
-    <div class="controls" id="main-controls">
+    <div class="controls" id="controls">
         <div class="full-width">
             <label>1. 上傳圖片底圖：</label>
             <input type="file" id="upload" accept="image/*">
@@ -60,12 +44,12 @@
         
         <div class="mode-selector full-width">
             <label style="width:100%"><span class="highlight">圖片呈現位置：</span></label>
-            <input type="radio" name="displayPos" id="posBoard" value="board" checked><label for="posBoard">圖片在板面</label>
-            <input type="radio" name="displayPos" id="posHole" value="hole"><label for="posHole">圖片在孔洞</label>
+            <input type="radio" name="displayPos" id="posBoard" value="board" checked><label for="posBoard">圖片在板面 (符號變透明孔)</label><br>
+            <input type="radio" name="displayPos" id="posHole" value="hole"><label for="posHole">圖片在孔洞 (符號內顯圖)</label>
         </div>
 
         <div class="mode-selector full-width">
-            <label style="width:100%">符號顏色模式：</label>
+            <label style="width:100%">符號顏色模式 (僅「圖片在板面」模式有效)：</label>
             <input type="radio" name="mode" id="modeHole" value="hole" checked><label for="modeHole">透明挖孔</label>
             <input type="radio" name="mode" id="modeRandom" value="random"><label for="modeRandom">隨機顏色</label>
             <input type="radio" name="mode" id="modeFixed" value="fixed"><label for="modeFixed">指定顏色</label>
@@ -94,50 +78,76 @@
             <label>文字顏色：</label>
             <input type="color" id="textColor" value="#ffffff" style="width:100%">
         </div>
+        <div>
+            <label>水平位置 (X): <span id="val-posX">50</span>%</label>
+            <input type="range" id="posX" min="0" max="100" value="50">
+        </div>
+        <div>
+            <label>垂直位置 (Y): <span id="val-posY">50</span>%</label>
+            <input type="range" id="posY" min="0" max="100" value="50">
+        </div>
         
         <button id="re-random" class="btn-random">重新打亂隨機位移</button>
-        <button id="download" class="btn-download">下載靜態 PNG</button>
-        <button id="make-mp4" class="btn-download-mp4 full-width">製作 3秒 擾亂 MP4 影片</button>
+        <button id="download" class="btn-download">下載干擾設計稿 (PNG)</button>
+        <button id="download-mp4" class="btn-mp4">製作並下載動畫 (MP4)</button>
+
+        <div class="progress-container" id="progressContainer">
+            <label>製作進度：</label>
+            <progress id="progressBar" value="0" max="100"></progress>
+        </div>
     </div>
 
     <canvas id="canvas"></canvas>
 
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
-
     <script>
-        const { createFFmpeg, fetchFile } = FFmpeg;
-        const ffmpeg = createFFmpeg({ log: false });
-        
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const upload = document.getElementById('upload');
-        const overlay = document.getElementById('progress-overlay');
-        const progressBar = document.getElementById('progress-bar');
-        const progressPercent = document.getElementById('progress-percent');
+        const controlsDiv = document.getElementById('controls');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
         
+        const controls = ['radius', 'spacing', 'fontSize', 'posX', 'posY', 'fixedColorPicker', 'textColor', 'overlayText'];
         const shapes = ['■','●','✖','⛰︎','⬆︎','⬇︎','⬅︎','➡︎','◀︎','▶︎','✚','✦','♥','♣','♦','♠','❋','❈','⚡︎'];
         let img = new Image();
+        let isRecording = false;
 
-        // 初始化繪製與事件
         upload.addEventListener('change', (e) => {
+            if (isRecording) return;
             const reader = new FileReader();
             reader.onload = (f) => {
                 img.onload = () => {
-                    // 為了 MP4 兼容性，寬高強制轉為偶數
-                    canvas.width = img.width % 2 === 0 ? img.width : img.width - 1;
-                    canvas.height = img.height % 2 === 0 ? img.height : img.height - 1;
+                    canvas.width = img.width;
+                    canvas.height = img.height;
                     draw();
                 };
                 img.src = f.target.result;
             };
-            reader.readAsDataURL(e.target.files[0]);
+            if (e.target.files[0]) reader.readAsDataURL(e.target.files[0]);
         });
 
-        // 通用繪製邏輯
-        function drawSymbols(sRadius, sSpacing, mode, isMaskMode) {
+        controls.forEach(id => {
+            document.getElementById(id).addEventListener('input', () => {
+                if (isRecording) return;
+                const span = document.getElementById(`val-${id}`);
+                if (span) span.textContent = document.getElementById(id).value;
+                if (img.src) draw();
+            });
+        });
+
+        document.getElementsByName('mode').forEach(r => r.onchange = () => { if(img.src && !isRecording) draw(); });
+        document.getElementsByName('displayPos').forEach(r => r.onchange = () => { if(img.src && !isRecording) draw(); });
+        document.getElementById('re-random').onclick = () => { if(img.src && !isRecording) draw(); };
+
+        function getRandomColor() {
+            return `rgb(${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)})`;
+        }
+
+        function drawSymbols(sRadius, sSpacing, mode, isMaskMode, alpha = 1) {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.font = `${sRadius}px sans-serif`;
+            ctx.globalAlpha = alpha;
 
             for (let y = -sSpacing; y < canvas.height + sSpacing; y += sSpacing) {
                 for (let x = -sSpacing; x < canvas.width + sSpacing; x += sSpacing) {
@@ -151,14 +161,16 @@
                     if (isMaskMode) {
                         ctx.fillStyle = 'black';
                     } else {
-                        if (mode === 'random') ctx.fillStyle = `rgb(${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)})`;
+                        if (mode === 'random') ctx.fillStyle = getRandomColor();
                         else if (mode === 'fixed') ctx.fillStyle = document.getElementById('fixedColorPicker').value;
+                        else ctx.fillStyle = 'white';
                     }
                     
                     ctx.fillText(shapes[Math.floor(Math.random()*shapes.length)], 0, 0);
                     ctx.restore();
                 }
             }
+            ctx.globalAlpha = 1;
         }
 
         function draw() {
@@ -166,23 +178,35 @@
             const sRadius = parseInt(document.getElementById('radius').value);
             const sSpacing = parseInt(document.getElementById('spacing').value);
             const fSize = parseInt(document.getElementById('fontSize').value);
+            const pX = parseInt(document.getElementById('posX').value) / 100;
+            const pY = parseInt(document.getElementById('posY').value) / 100;
             const txt = document.getElementById('overlayText').value;
             
-            let mode = document.querySelector('input[name="mode"]:checked').value;
-            let displayPos = document.querySelector('input[name="displayPos"]:checked').value;
+            let mode = 'hole';
+            document.getElementsByName('mode').forEach(r => { if(r.checked) mode = r.value; });
+
+            let displayPos = 'board';
+            document.getElementsByName('displayPos').forEach(r => { if(r.checked) displayPos = r.value; });
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             if (displayPos === 'board') {
                 ctx.globalCompositeOperation = 'source-over';
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                if (mode === 'hole') ctx.globalCompositeOperation = 'destination-out';
+                ctx.drawImage(img, 0, 0);
+
+                if (mode === 'hole') {
+                    ctx.globalCompositeOperation = 'destination-out';
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                }
                 drawSymbols(sRadius, sSpacing, mode, false);
+
             } else {
                 ctx.globalCompositeOperation = 'source-over';
                 drawSymbols(sRadius, sSpacing, 'fixed', true);
+
                 ctx.globalCompositeOperation = 'source-in';
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
             }
 
             ctx.globalCompositeOperation = 'source-over';
@@ -192,71 +216,118 @@
                 ctx.textBaseline = 'middle';
                 ctx.strokeStyle = 'rgba(0,0,0,0.7)';
                 ctx.lineWidth = fSize / 8;
-                ctx.strokeText(txt, canvas.width / 2, canvas.height / 2);
+                ctx.strokeText(txt, canvas.width * pX, canvas.height * pY);
                 ctx.fillStyle = document.getElementById('textColor').value;
-                ctx.fillText(txt, canvas.width / 2, canvas.height / 2);
+                ctx.fillText(txt, canvas.width * pX, canvas.height * pY);
             }
         }
 
-        // --- MP4 製作邏輯 ---
-        document.getElementById('make-mp4').onclick = async () => {
+        // PNG 下載
+        document.getElementById('download').onclick = () => {
+            if (isRecording) return alert('請等待 MP4 製作完成');
             if (!img.src) return alert('請先上傳圖片');
-            
-            // 鎖定 UI
-            overlay.style.display = 'flex';
-            const fps = 10;
-            const duration = 3;
-            const totalFrames = fps * duration;
-
-            if (!ffmpeg.isLoaded()) await ffmpeg.load();
-
-            for (let i = 0; i < totalFrames; i++) {
-                draw(); // 每一幀都重新生成隨機位移
-                const imageData = canvas.toDataURL('image/jpeg', 0.8);
-                const name = `frame${i.toString().padStart(3, '0')}.jpg`;
-                ffmpeg.FS('writeFile', name, await fetchFile(imageData));
-                
-                // 更新進度 (前 50% 為擷取)
-                const p = Math.floor((i / totalFrames) * 50);
-                progressBar.style.width = `${p}%`;
-                progressPercent.textContent = `${p}%`;
-            }
-
-            // FFmpeg 合成
-            ffmpeg.setProgress(({ ratio }) => {
-                const p = 50 + Math.floor(ratio * 50);
-                progressBar.style.width = `${p}%`;
-                progressPercent.textContent = `${p}%`;
-            });
-
-            await ffmpeg.run('-framerate', `${fps}`, '-i', 'frame%03d.jpg', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', 'out.mp4');
-
-            const data = ffmpeg.FS('readFile', 'out.mp4');
-            const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
-            
             const link = document.createElement('a');
-            link.href = videoUrl;
-            link.download = 'ai-protected-video.mp4';
+            link.download = 'ai-protected-design.png';
+            link.href = canvas.toDataURL('image/png');
             link.click();
-
-            // 清理與解鎖
-            overlay.style.display = 'none';
-            progressBar.style.width = '0%';
         };
 
-        // UI 聯動
-        ['radius', 'spacing', 'fontSize', 'fixedColorPicker', 'textColor', 'overlayText'].forEach(id => {
-            document.getElementById(id).addEventListener('input', () => {
-                if (document.getElementById(`val-${id}`)) document.getElementById(`val-${id}`).textContent = document.getElementById(id).value;
-                draw();
-            });
-        });
-        document.getElementById('re-random').onclick = draw;
-        document.getElementById('download').onclick = () => {
-            const link = document.createElement('a');
-            link.download = 'design.png';
-            link.href = canvas.toDataURL();
-            link.click();
+        // MP4 製作與下載
+        document.getElementById('download-mp4').onclick = async () => {
+            if (!img.src) return alert('請先上傳圖片');
+            if (isRecording) return;
+
+            isRecording = true;
+            controlsDiv.classList.add('disabled');
+            progressContainer.style.display = 'block';
+            progressBar.value = 0;
+
+            const stream = canvas.captureStream(30); // 30 FPS
+            const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+            const chunks = [];
+
+            mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'ai-protected-animation.mp4'; // 雖然是 webm，但許多系統會自動播放
+                a.click();
+                URL.revokeObjectURL(url);
+
+                // 恢復控制
+                isRecording = false;
+                controlsDiv.classList.remove('disabled');
+                progressContainer.style.display = 'none';
+            };
+
+            mediaRecorder.start();
+
+            // 動畫：符號逐漸出現（0% → 100% 不透明）
+            const duration = 3000; // 3秒動畫
+            const steps = 90; // 約 30fps × 3s
+            let currentStep = 0;
+
+            const animate = () => {
+                if (currentStep > steps) {
+                    mediaRecorder.stop();
+                    return;
+                }
+
+                // 清除並重繪
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const progress = currentStep / steps;
+                progressBar.value = progress * 100;
+
+                // 重新繪製底圖與文字（固定）
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.drawImage(img, 0, 0);
+
+                const sRadius = parseInt(document.getElementById('radius').value);
+                const sSpacing = parseInt(document.getElementById('spacing').value);
+                let mode = 'hole';
+                document.getElementsByName('mode').forEach(r => { if(r.checked) mode = r.value; });
+                let displayPos = 'board';
+                document.getElementsByName('displayPos').forEach(r => { if(r.checked) displayPos = r.value; });
+
+                if (displayPos === 'board') {
+                    if (mode === 'hole') {
+                        ctx.globalCompositeOperation = 'destination-out';
+                    } else {
+                        ctx.globalCompositeOperation = 'source-over';
+                    }
+                    drawSymbols(sRadius, sSpacing, mode, false, progress);
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                    drawSymbols(sRadius, sSpacing, 'fixed', true, progress);
+                    ctx.globalCompositeOperation = 'source-in';
+                    ctx.drawImage(img, 0, 0);
+                }
+
+                // 文字層
+                const fSize = parseInt(document.getElementById('fontSize').value);
+                const pX = parseInt(document.getElementById('posX').value) / 100;
+                const pY = parseInt(document.getElementById('posY').value) / 100;
+                const txt = document.getElementById('overlayText').value;
+                if (txt) {
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.font = `bold ${fSize}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+                    ctx.lineWidth = fSize / 8;
+                    ctx.strokeText(txt, canvas.width * pX, canvas.height * pY);
+                    ctx.fillStyle = document.getElementById('textColor').value;
+                    ctx.fillText(txt, canvas.width * pX, canvas.height * pY);
+                }
+
+                currentStep++;
+                requestAnimationFrame(animate);
+            };
+
+            animate();
         };
     </script>
 </body>
