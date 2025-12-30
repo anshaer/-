@@ -86,10 +86,16 @@
             <label>垂直位置 (Y): <span id="val-posY">50</span>%</label>
             <input type="range" id="posY" min="0" max="100" value="50">
         </div>
+
+        <div class="full-width section-title">MP4 影片設定</div>
+        <div class="full-width">
+            <label>影片秒數: <span id="val-duration">3</span> 秒</label>
+            <input type="range" id="duration" min="1" max="10" step="0.5" value="3">
+        </div>
         
         <button id="re-random" class="btn-random">重新打亂隨機位移</button>
         <button id="download" class="btn-download">下載干擾設計稿 (PNG)</button>
-        <button id="download-mp4" class="btn-mp4">製作並下載動畫 (MP4)</button>
+        <button id="download-mp4" class="btn-mp4">製作並下載影片 (MP4)</button>
 
         <div class="progress-container" id="progressContainer">
             <label>製作進度：</label>
@@ -107,7 +113,7 @@
         const progressContainer = document.getElementById('progressContainer');
         const progressBar = document.getElementById('progressBar');
         
-        const controls = ['radius', 'spacing', 'fontSize', 'posX', 'posY', 'fixedColorPicker', 'textColor', 'overlayText'];
+        const controls = ['radius', 'spacing', 'fontSize', 'posX', 'posY', 'fixedColorPicker', 'textColor', 'overlayText', 'duration'];
         const shapes = ['■','●','✖','⛰︎','⬆︎','⬇︎','⬅︎','➡︎','◀︎','▶︎','✚','✦','♥','♣','♦','♠','❋','❈','⚡︎'];
         let img = new Image();
         let isRecording = false;
@@ -127,11 +133,12 @@
         });
 
         controls.forEach(id => {
-            document.getElementById(id).addEventListener('input', () => {
+            const el = document.getElementById(id);
+            el.addEventListener('input', () => {
                 if (isRecording) return;
                 const span = document.getElementById(`val-${id}`);
-                if (span) span.textContent = document.getElementById(id).value;
-                if (img.src) draw();
+                if (span) span.textContent = el.value;
+                if (img.src && id !== 'duration') draw();
             });
         });
 
@@ -143,11 +150,10 @@
             return `rgb(${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)})`;
         }
 
-        function drawSymbols(sRadius, sSpacing, mode, isMaskMode, alpha = 1) {
+        function drawSymbols(sRadius, sSpacing, mode, isMaskMode) {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.font = `${sRadius}px sans-serif`;
-            ctx.globalAlpha = alpha;
 
             for (let y = -sSpacing; y < canvas.height + sSpacing; y += sSpacing) {
                 for (let x = -sSpacing; x < canvas.width + sSpacing; x += sSpacing) {
@@ -170,10 +176,9 @@
                     ctx.restore();
                 }
             }
-            ctx.globalAlpha = 1;
         }
 
-        function draw() {
+        function drawFullDesign() {
             if (!img.src) return;
             const sRadius = parseInt(document.getElementById('radius').value);
             const sSpacing = parseInt(document.getElementById('spacing').value);
@@ -222,6 +227,10 @@
             }
         }
 
+        function draw() {
+            drawFullDesign();
+        }
+
         // PNG 下載
         document.getElementById('download').onclick = () => {
             if (isRecording) return alert('請等待 MP4 製作完成');
@@ -232,7 +241,7 @@
             link.click();
         };
 
-        // MP4 製作與下載
+        // MP4 製作（直接滿色彩持續顯示）
         document.getElementById('download-mp4').onclick = async () => {
             if (!img.src) return alert('請先上傳圖片');
             if (isRecording) return;
@@ -242,7 +251,11 @@
             progressContainer.style.display = 'block';
             progressBar.value = 0;
 
-            const stream = canvas.captureStream(30); // 30 FPS
+            const durationSec = parseFloat(document.getElementById('duration').value);
+            const fps = 30;
+            const totalFrames = Math.round(durationSec * fps);
+
+            const stream = canvas.captureStream(fps);
             const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
             const chunks = [];
 
@@ -252,11 +265,10 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'ai-protected-animation.mp4'; // 雖然是 webm，但許多系統會自動播放
+                a.download = `ai-protected-full-${durationSec}s.mp4`;
                 a.click();
                 URL.revokeObjectURL(url);
 
-                // 恢復控制
                 isRecording = false;
                 controlsDiv.classList.remove('disabled');
                 progressContainer.style.display = 'none';
@@ -264,70 +276,24 @@
 
             mediaRecorder.start();
 
-            // 動畫：符號逐漸出現（0% → 100% 不透明）
-            const duration = 3000; // 3秒動畫
-            const steps = 90; // 約 30fps × 3s
-            let currentStep = 0;
+            let currentFrame = 0;
 
-            const animate = () => {
-                if (currentStep > steps) {
+            const renderFrame = () => {
+                if (currentFrame >= totalFrames) {
                     mediaRecorder.stop();
                     return;
                 }
 
-                // 清除並重繪
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // 每次都畫完整的設計稿（滿色彩）
+                drawFullDesign();
 
-                const progress = currentStep / steps;
-                progressBar.value = progress * 100;
+                progressBar.value = (currentFrame / totalFrames) * 100;
 
-                // 重新繪製底圖與文字（固定）
-                ctx.globalCompositeOperation = 'source-over';
-                ctx.drawImage(img, 0, 0);
-
-                const sRadius = parseInt(document.getElementById('radius').value);
-                const sSpacing = parseInt(document.getElementById('spacing').value);
-                let mode = 'hole';
-                document.getElementsByName('mode').forEach(r => { if(r.checked) mode = r.value; });
-                let displayPos = 'board';
-                document.getElementsByName('displayPos').forEach(r => { if(r.checked) displayPos = r.value; });
-
-                if (displayPos === 'board') {
-                    if (mode === 'hole') {
-                        ctx.globalCompositeOperation = 'destination-out';
-                    } else {
-                        ctx.globalCompositeOperation = 'source-over';
-                    }
-                    drawSymbols(sRadius, sSpacing, mode, false, progress);
-                } else {
-                    ctx.globalCompositeOperation = 'source-over';
-                    drawSymbols(sRadius, sSpacing, 'fixed', true, progress);
-                    ctx.globalCompositeOperation = 'source-in';
-                    ctx.drawImage(img, 0, 0);
-                }
-
-                // 文字層
-                const fSize = parseInt(document.getElementById('fontSize').value);
-                const pX = parseInt(document.getElementById('posX').value) / 100;
-                const pY = parseInt(document.getElementById('posY').value) / 100;
-                const txt = document.getElementById('overlayText').value;
-                if (txt) {
-                    ctx.globalCompositeOperation = 'source-over';
-                    ctx.font = `bold ${fSize}px sans-serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-                    ctx.lineWidth = fSize / 8;
-                    ctx.strokeText(txt, canvas.width * pX, canvas.height * pY);
-                    ctx.fillStyle = document.getElementById('textColor').value;
-                    ctx.fillText(txt, canvas.width * pX, canvas.height * pY);
-                }
-
-                currentStep++;
-                requestAnimationFrame(animate);
+                currentFrame++;
+                requestAnimationFrame(renderFrame);
             };
 
-            animate();
+            renderFrame();
         };
     </script>
 </body>
