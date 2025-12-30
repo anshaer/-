@@ -117,6 +117,7 @@
         const shapes = ['■','●','✖','⛰︎','⬆︎','⬇︎','⬅︎','➡︎','◀︎','▶︎','✚','✦','♥','♣','♦','♠','❋','❈','⚡︎'];
         let img = new Image();
         let isRecording = false;
+        let startTime = 0;
 
         upload.addEventListener('change', (e) => {
             if (isRecording) return;
@@ -125,7 +126,7 @@
                 img.onload = () => {
                     canvas.width = img.width;
                     canvas.height = img.height;
-                    draw();
+                    drawFullDesign();
                 };
                 img.src = f.target.result;
             };
@@ -138,13 +139,13 @@
                 if (isRecording) return;
                 const span = document.getElementById(`val-${id}`);
                 if (span) span.textContent = el.value;
-                if (img.src && id !== 'duration') draw();
+                if (img.src && id !== 'duration') drawFullDesign();
             });
         });
 
-        document.getElementsByName('mode').forEach(r => r.onchange = () => { if(img.src && !isRecording) draw(); });
-        document.getElementsByName('displayPos').forEach(r => r.onchange = () => { if(img.src && !isRecording) draw(); });
-        document.getElementById('re-random').onclick = () => { if(img.src && !isRecording) draw(); };
+        document.getElementsByName('mode').forEach(r => r.onchange = () => { if(img.src && !isRecording) drawFullDesign(); });
+        document.getElementsByName('displayPos').forEach(r => r.onchange = () => { if(img.src && !isRecording) drawFullDesign(); });
+        document.getElementById('re-random').onclick = () => { if(img.src && !isRecording) drawFullDesign(); };
 
         function getRandomColor() {
             return `rgb(${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)})`;
@@ -227,13 +228,9 @@
             }
         }
 
-        function draw() {
-            drawFullDesign();
-        }
-
         // PNG 下載
         document.getElementById('download').onclick = () => {
-            if (isRecording) return alert('請等待 MP4 製作完成');
+            if (isRecording) return alert('請等待影片製作完成');
             if (!img.src) return alert('請先上傳圖片');
             const link = document.createElement('a');
             link.download = 'ai-protected-design.png';
@@ -241,7 +238,7 @@
             link.click();
         };
 
-        // MP4 製作（直接滿色彩持續顯示）
+        // MP4 製作（修正長度問題）
         document.getElementById('download-mp4').onclick = async () => {
             if (!img.src) return alert('請先上傳圖片');
             if (isRecording) return;
@@ -253,8 +250,6 @@
 
             const durationSec = parseFloat(document.getElementById('duration').value);
             const fps = 30;
-            const totalFrames = Math.round(durationSec * fps);
-
             const stream = canvas.captureStream(fps);
             const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
             const chunks = [];
@@ -275,25 +270,29 @@
             };
 
             mediaRecorder.start();
+            startTime = performance.now();
 
-            let currentFrame = 0;
+            // 精準定時停止錄製
+            setTimeout(() => {
+                mediaRecorder.stop();
+            }, durationSec * 1000);
 
-            const renderFrame = () => {
-                if (currentFrame >= totalFrames) {
-                    mediaRecorder.stop();
-                    return;
-                }
+            // 持續重繪完整畫面 + 更新進度條
+            const render = () => {
+                if (!isRecording) return;
 
-                // 每次都畫完整的設計稿（滿色彩）
                 drawFullDesign();
 
-                progressBar.value = (currentFrame / totalFrames) * 100;
+                const elapsed = (performance.now() - startTime) / 1000;
+                const progress = Math.min(elapsed / durationSec, 1);
+                progressBar.value = progress * 100;
 
-                currentFrame++;
-                requestAnimationFrame(renderFrame);
+                if (progress < 1) {
+                    requestAnimationFrame(render);
+                }
             };
 
-            renderFrame();
+            render();
         };
     </script>
 </body>
