@@ -2,87 +2,185 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🎄 3秒真影片 - 批次轉換工具</title>
+    <title>AI 對抗工具 - MP4 強化版 (FFmpeg.wasm)</title>
     <script src="coi-serviceworker.js"></script>
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background: #1a1a1a; color: #eee; padding: 20px; }
+        .controls, .video-controls { background: #2c2c2c; padding: 20px; border-radius: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; width: 100%; max-width: 750px; border: 1px solid #444; }
+        .full-width { grid-column: span 2; }
+        canvas { max-width: 95vw; border: 2px solid #555; background: #000; }
+        input[type="range"] { width: 100%; }
+        button { padding: 12px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; }
+        .btn-video { background: #e74c3c; color: white; width: 100%; }
+        progress { width: 100%; height: 20px; accent-color: #3498db; }
+        #progressContainer { display: none; width: 100%; text-align: center; }
+        #statusText { margin-top: 5px; color: #3498db; font-weight: bold; }
+    </style>
 </head>
 <body>
 
-<div class="container">
-    <header>
-        <h2>圖片轉 3 秒影片</h2>
-        <p class="subtitle">支援一次處理 4 張圖並同步分享</p>
-    </header>
+    <h2>🎨 AI 視覺對抗：MP4 生成工具</h2>
 
-    <div class="input-group">
-        <label for="uploader">1. 選擇來源圖片 (可選 1~4 張)</label>
-        <div class="file-custom-input">
-            <input type="file" id="uploader" accept="image/*" multiple>
-            <small style="color: #8e8e93; margin-top: 5px; display: block;">按住 Ctrl/Cmd 或長按可多選</small>
+    <div class="controls">
+        <div class="full-width">
+            <label>1. 上傳圖片：</label>
+            <input type="file" id="upload" accept="image/*">
         </div>
+        <div class="full-width">
+            <label>符號密度: <span id="val-spacing">40</span></label>
+            <input type="range" id="spacing" min="15" max="100" value="40">
+        </div>
+        <button id="re-random" style="background:#34495e; color:white;">測試單張效果</button>
     </div>
 
-    <div class="input-group">
-        <label>2. 浮水印與外觀設定</label>
-        <input type="text" id="videoText" value="禁止盜用" placeholder="輸入文字內容...">
+    <canvas id="canvas"></canvas>
+
+    <div class="video-controls">
+        <div class="full-width">
+            <label>影片時長: <span id="val-duration">5</span> 秒</label>
+            <input type="range" id="duration" min="1" max="15" value="5">
+        </div>
         
-        <div class="slider-box">
-            <div class="color-row">
-                <label>文字顏色</label>
-                <input type="color" id="textColor" value="#ffffff">
-                <span id="colorHex" class="val-display">#FFFFFF</span>
-            </div>
-            
-            <div class="slider-row">
-                <label>文字大小</label>
-                <input type="range" id="fontSize" min="20" max="250" value="80">
-                <span class="val-display" id="fontSizeVal">80</span>
-            </div>
-            
-            <div class="slider-row">
-                <label>左右位置</label>
-                <input type="range" id="posX" min="0" max="100" value="50">
-                <span class="val-display" id="posXVal">50%</span>
-            </div>
-            
-            <div class="slider-row">
-                <label>上下位置</label>
-                <input type="range" id="posY" min="0" max="100" value="50">
-                <span class="val-display" id="posYVal">50%</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="input-group">
-        <label for="qualitySelect">3. 輸出畫質 (建議 720p 以確保多圖穩定)</label>
-        <select id="qualitySelect">
-            <option value="480">480p (速度最快)</option>
-            <option value="720" selected>720p (標準推薦)</option>
-            <option value="1080">1080p (檔案較大)</option>
-        </select>
-    </div>
-
-    <button id="convertBtn">開始批次生成影片</button>
-    <div id="statusDisplay">系統準備就緒</div>
-
-    <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
-
-    <div class="preview-box" id="previewBox">
-        <label style="text-align: center; margin-bottom: 15px;">🎬 生成預覽</label>
+        <button id="startRecord" class="btn-video" disabled>生成 MP4 影片 (FFmpeg)</button>
         
-        <div id="videoContainer" class="video-grid"></div>
-
-        <div class="action-buttons" style="margin-top: 25px;">
-            <button id="shareBtn" class="share-btn">📤 一次分享全部影片</button>
-            <p style="font-size: 12px; color: #8e8e93; text-align: center; margin-top: 10px;">
-                點擊上方按鈕可同時將所有影片分享至社群貼文
-            </p>
+        <div id="progressContainer" class="full-width">
+            <progress id="videoProgress" value="0" max="100"></progress>
+            <p id="statusText">載入 FFmpeg 核心中...</p>
         </div>
-    </div>
-</div>
 
-<script src="script.js"></script>
+        <a id="downloadLink" style="display:none;" class="full-width">
+            <button style="background:#27ae60; color:white; width:100%">💾 下載 MP4 影片</button>
+        </a>
+    </div>
+
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.7/dist/umd/ffmpeg.umd.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+
+    <script>
+        const { FFmpeg } = window.FFmpeg;
+        const { fetchFile } = window.FFmpegUtil;
+        let ffmpeg = null;
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const shapes = ['■','●','✖','⛰︎','✚','✦','♥','♠'];
+        let img = new Image();
+
+        // 監聽圖片上傳
+        document.getElementById('upload').addEventListener('change', (e) => {
+            const reader = new FileReader();
+            reader.onload = (f) => {
+                img.onload = () => {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    draw();
+                    document.getElementById('startRecord').disabled = false;
+                };
+                img.src = f.target.result;
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        });
+
+        function draw() {
+            if (!img.src) return;
+            const sSpacing = parseInt(document.getElementById('spacing').value);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.font = `25px sans-serif`;
+            for (let y = -20; y < canvas.height + 20; y += sSpacing) {
+                for (let x = -20; x < canvas.width + 20; x += sSpacing) {
+                    ctx.save();
+                    ctx.translate(x + (Math.random()-0.5)*15, y + (Math.random()-0.5)*15);
+                    ctx.rotate(Math.random() * Math.PI * 2);
+                    ctx.fillText(shapes[Math.floor(Math.random()*shapes.length)], 0, 0);
+                    ctx.restore();
+                }
+            }
+            ctx.globalCompositeOperation = 'source-over';
+        }
+
+        document.getElementById('spacing').oninput = (e) => {
+            document.getElementById('val-spacing').textContent = e.target.value;
+            draw();
+        };
+
+        // --- FFmpeg MP4 錄製與轉碼邏輯 ---
+        const startBtn = document.getElementById('startRecord');
+        const statusText = document.getElementById('statusText');
+        const progressBar = document.getElementById('videoProgress');
+
+        startBtn.onclick = async () => {
+            const duration = parseInt(document.getElementById('duration').value);
+            const fps = 24; 
+            const totalFrames = duration * fps;
+            
+            startBtn.disabled = true;
+            document.getElementById('progressContainer').style.display = 'block';
+            document.getElementById('downloadLink').style.display = 'none';
+
+            // 1. 初始化 FFmpeg
+            if (!ffmpeg) {
+                statusText.textContent = "正在載入 FFmpeg 核心...";
+                ffmpeg = new FFmpeg();
+                await ffmpeg.load({
+                    coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.4/dist/umd/ffmpeg-core.js',
+                    wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.4/dist/umd/ffmpeg-core.wasm',
+                });
+            }
+
+            // 2. 錄製 Canvas 影格並暫存為 WebM (最快速的方式)
+            statusText.textContent = "錄製畫面中...";
+            const chunks = [];
+            const stream = canvas.captureStream(fps);
+            const recorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+
+            recorder.ondataavailable = e => chunks.push(e.data);
+            
+            const recordPromise = new Promise(resolve => {
+                recorder.onstop = resolve;
+            });
+
+            recorder.start();
+            let frameCount = 0;
+            const recordInterval = setInterval(() => {
+                draw();
+                frameCount++;
+                progressBar.value = (frameCount / totalFrames) * 50; // 錄製佔 50%
+                if (frameCount >= totalFrames) {
+                    clearInterval(recordInterval);
+                    recorder.stop();
+                }
+            }, 1000 / fps);
+
+            await recordPromise;
+
+            // 3. 使用 FFmpeg 轉碼 WebM 為 MP4
+            statusText.textContent = "轉碼為 MP4 中 (請稍候)...";
+            const webmBlob = new Blob(chunks, { type: 'video/webm' });
+            const webmFile = await fetchFile(webmBlob);
+            
+            await ffmpeg.writeFile('input.webm', webmFile);
+            
+            // 執行轉碼指令
+            // -c:v libx264 確保 MP4 相容性最高
+            await ffmpeg.exec(['-i', 'input.webm', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', 'output.mp4']);
+            
+            const data = await ffmpeg.readFile('output.mp4');
+            const mp4Blob = new Blob([data.buffer], { type: 'video/mp4' });
+            
+            // 4. 下載
+            const url = URL.createObjectURL(mp4Blob);
+            document.getElementById('downloadLink').href = url;
+            document.getElementById('downloadLink').download = `anti_ai_${Date.now()}.mp4`;
+            document.getElementById('downloadLink').style.display = 'block';
+            
+            progressBar.value = 100;
+            statusText.textContent = "MP4 製作成功！";
+            startBtn.disabled = false;
+        };
+
+        document.getElementById('re-random').onclick = draw;
+    </script>
 </body>
 </html>
