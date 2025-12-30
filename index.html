@@ -2,54 +2,92 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>AI 對抗工具 - MP4 強化版 (FFmpeg.wasm)</title>
+    <title>AI 對抗全功能工作站 - MP4 強化版</title>
     <script src="coi-serviceworker.js"></script>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background: #1a1a1a; color: #eee; padding: 20px; }
-        .controls, .video-controls { background: #2c2c2c; padding: 20px; border-radius: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; width: 100%; max-width: 750px; border: 1px solid #444; }
+        body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; display: flex; flex-direction: column; align-items: center; background: #1a1a1a; color: #eee; padding: 20px; }
+        .controls, .video-controls { background: #2c2c2c; padding: 20px; border-radius: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; width: 100%; max-width: 800px; border: 1px solid #444; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .full-width { grid-column: span 2; }
-        canvas { max-width: 95vw; border: 2px solid #555; background: #000; }
-        input[type="range"] { width: 100%; }
-        button { padding: 12px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; }
-        .btn-video { background: #e74c3c; color: white; width: 100%; }
+        .section-title { font-weight: bold; color: #9b59b6; margin-top: 10px; border-bottom: 1px solid #444; padding-bottom: 5px; }
+        .mode-selector { background: #3d3d3d; padding: 15px; border-radius: 8px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
+        canvas { 
+            max-width: 95vw; border: 2px solid #555;
+            background-image: linear-gradient(45deg, #222 25%, transparent 25%), linear-gradient(-45deg, #222 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #222 75%), linear-gradient(-45deg, transparent 75%, #222 75%);
+            background-size: 20px 20px;
+        }
+        input[type="range"] { width: 100%; cursor: pointer; }
+        input[type="text"] { width: 100%; padding: 10px; box-sizing: border-box; background: #444; border: 1px solid #666; color: white; border-radius: 6px; }
+        label { font-size: 13px; color: #ccc; display: block; margin-bottom: 5px; }
+        button { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-random { background: #34495e; color: white; }
+        .btn-download { background: #27ae60; color: white; }
+        .btn-video { background: #e74c3c; color: white; grid-column: span 2; }
+        button:disabled { background: #555 !important; opacity: 0.6; cursor: not-allowed; }
         progress { width: 100%; height: 20px; accent-color: #3498db; }
-        #progressContainer { display: none; width: 100%; text-align: center; }
-        #statusText { margin-top: 5px; color: #3498db; font-weight: bold; }
+        #statusText { color: #3498db; font-weight: bold; text-align: center; width: 100%; margin-top: 5px; }
     </style>
 </head>
 <body>
 
-    <h2>🎨 AI 視覺對抗：MP4 生成工具</h2>
+    <h2>🎨 AI 視覺對抗工作站 (MP4 Export)</h2>
 
-    <div class="controls">
+    <div id="uiContainer" class="controls">
         <div class="full-width">
-            <label>1. 上傳圖片：</label>
+            <label>1. 上傳底圖：</label>
             <input type="file" id="upload" accept="image/*">
         </div>
-        <div class="full-width">
-            <label>符號密度: <span id="val-spacing">40</span></label>
-            <input type="range" id="spacing" min="15" max="100" value="40">
+        
+        <div class="mode-selector full-width">
+            <label style="width:100%">符號顏色模式：</label>
+            <input type="radio" name="mode" id="modeHole" value="hole" checked><label for="modeHole">透明挖孔</label>
+            <input type="radio" name="mode" id="modeRandom" value="random"><label for="modeRandom">隨機顏色</label>
+            <input type="radio" name="mode" id="modeFixed" value="fixed"><label for="modeFixed">指定顏色</label>
+            <input type="color" id="fixedColorPicker" value="#ffffff">
         </div>
-        <button id="re-random" style="background:#34495e; color:white;">測試單張效果</button>
+
+        <div>
+            <label>符號大小: <span id="val-radius">25</span></label>
+            <input type="range" id="radius" min="10" max="100" value="25">
+        </div>
+        <div>
+            <label>分布密度: <span id="val-spacing">40</span></label>
+            <input type="range" id="spacing" min="15" max="150" value="40">
+        </div>
+
+        <div class="full-width section-title">文字防護層</div>
+        <input type="text" id="overlayText" class="full-width" placeholder="在此輸入文字...">
+        
+        <div>
+            <label>文字大小: <span id="val-fontSize">80</span></label>
+            <input type="range" id="fontSize" min="20" max="400" value="80">
+        </div>
+        <div>
+            <label>文字顏色：</label>
+            <input type="color" id="textColor" value="#ffffff" style="width:100%">
+        </div>
+        
+        <button id="re-random" class="btn-random">隨機打亂位置</button>
+        <button id="downloadPNG" class="btn-download">下載 PNG 圖片</button>
     </div>
 
     <canvas id="canvas"></canvas>
 
     <div class="video-controls">
+        <div class="full-width section-title">🎬 影片生成 (MP4 格式)</div>
         <div class="full-width">
             <label>影片時長: <span id="val-duration">5</span> 秒</label>
             <input type="range" id="duration" min="1" max="15" value="5">
         </div>
         
-        <button id="startRecord" class="btn-video" disabled>生成 MP4 影片 (FFmpeg)</button>
+        <button id="startRecord" class="btn-video" disabled>生成 MP4 影片</button>
         
-        <div id="progressContainer" class="full-width">
+        <div id="progressContainer" class="full-width" style="display:none;">
             <progress id="videoProgress" value="0" max="100"></progress>
-            <p id="statusText">載入 FFmpeg 核心中...</p>
+            <p id="statusText">正在載入 FFmpeg...</p>
         </div>
 
         <a id="downloadLink" style="display:none;" class="full-width">
-            <button style="background:#27ae60; color:white; width:100%">💾 下載 MP4 影片</button>
+            <button class="btn-download" style="width:100%">💾 下載產出的 MP4</button>
         </a>
     </div>
 
@@ -63,11 +101,14 @@
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        const shapes = ['■','●','✖','⛰︎','✚','✦','♥','♠'];
+        const upload = document.getElementById('upload');
+        const shapes = ['■','●','✖','⛰︎','✚','✦','♥','♠','❋','❈','⚡︎','✨'];
         let img = new Image();
 
-        // 監聽圖片上傳
-        document.getElementById('upload').addEventListener('change', (e) => {
+        // 控制項聯集
+        const inputs = document.querySelectorAll('input, button');
+
+        upload.addEventListener('change', (e) => {
             const reader = new FileReader();
             reader.onload = (f) => {
                 img.onload = () => {
@@ -83,45 +124,71 @@
 
         function draw() {
             if (!img.src) return;
+            const sRadius = parseInt(document.getElementById('radius').value);
             const sSpacing = parseInt(document.getElementById('spacing').value);
+            const fSize = parseInt(document.getElementById('fontSize').value);
+            const txt = document.getElementById('overlayText').value;
+            let mode = 'hole';
+            document.getElementsByName('mode').forEach(r => { if(r.checked) mode = r.value; });
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0);
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.font = `25px sans-serif`;
-            for (let y = -20; y < canvas.height + 20; y += sSpacing) {
-                for (let x = -20; x < canvas.width + 20; x += sSpacing) {
+
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = `${sRadius}px sans-serif`;
+
+            if (mode === 'hole') ctx.globalCompositeOperation = 'destination-out';
+            else ctx.globalCompositeOperation = 'source-over';
+
+            for (let y = -sSpacing; y < canvas.height + sSpacing; y += sSpacing) {
+                for (let x = -sSpacing; x < canvas.width + sSpacing; x += sSpacing) {
                     ctx.save();
-                    ctx.translate(x + (Math.random()-0.5)*15, y + (Math.random()-0.5)*15);
+                    const jitter = sSpacing * 0.4;
+                    ctx.translate(x + (Math.random()-0.5)*jitter, y + (Math.random()-0.5)*jitter);
                     ctx.rotate(Math.random() * Math.PI * 2);
+                    if (mode === 'random') ctx.fillStyle = `rgb(${Math.random()*255},${Math.random()*255},${Math.random()*255})`;
+                    else ctx.fillStyle = document.getElementById('fixedColorPicker').value;
                     ctx.fillText(shapes[Math.floor(Math.random()*shapes.length)], 0, 0);
                     ctx.restore();
                 }
             }
+
             ctx.globalCompositeOperation = 'source-over';
+            if (txt) {
+                ctx.font = `bold ${fSize}px sans-serif`;
+                ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+                ctx.lineWidth = fSize / 8;
+                ctx.strokeText(txt, canvas.width/2, canvas.height/2);
+                ctx.fillStyle = document.getElementById('textColor').value;
+                ctx.fillText(txt, canvas.width/2, canvas.height/2);
+            }
         }
 
-        document.getElementById('spacing').oninput = (e) => {
-            document.getElementById('val-spacing').textContent = e.target.value;
-            draw();
-        };
+        // 滑桿事件
+        document.querySelectorAll('input[type="range"]').forEach(input => {
+            input.addEventListener('input', () => {
+                document.getElementById(`val-${input.id}`).textContent = input.value;
+                draw();
+            });
+        });
 
-        // --- FFmpeg MP4 錄製與轉碼邏輯 ---
+        // MP4 錄製與轉碼
         const startBtn = document.getElementById('startRecord');
         const statusText = document.getElementById('statusText');
         const progressBar = document.getElementById('videoProgress');
 
         startBtn.onclick = async () => {
             const duration = parseInt(document.getElementById('duration').value);
-            const fps = 24; 
+            const fps = 24;
             const totalFrames = duration * fps;
             
-            startBtn.disabled = true;
+            inputs.forEach(i => i.disabled = true);
             document.getElementById('progressContainer').style.display = 'block';
             document.getElementById('downloadLink').style.display = 'none';
 
-            // 1. 初始化 FFmpeg
             if (!ffmpeg) {
-                statusText.textContent = "正在載入 FFmpeg 核心...";
+                statusText.textContent = "載入 FFmpeg 核心...";
                 ffmpeg = new FFmpeg();
                 await ffmpeg.load({
                     coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.4/dist/umd/ffmpeg-core.js',
@@ -129,58 +196,56 @@
                 });
             }
 
-            // 2. 錄製 Canvas 影格並暫存為 WebM (最快速的方式)
-            statusText.textContent = "錄製畫面中...";
+            statusText.textContent = "正在錄製每一影格...";
             const chunks = [];
             const stream = canvas.captureStream(fps);
             const recorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
-
             recorder.ondataavailable = e => chunks.push(e.data);
             
-            const recordPromise = new Promise(resolve => {
-                recorder.onstop = resolve;
-            });
-
+            const recordPromise = new Promise(res => recorder.onstop = res);
             recorder.start();
-            let frameCount = 0;
-            const recordInterval = setInterval(() => {
-                draw();
-                frameCount++;
-                progressBar.value = (frameCount / totalFrames) * 50; // 錄製佔 50%
-                if (frameCount >= totalFrames) {
-                    clearInterval(recordInterval);
+
+            let frames = 0;
+            const timer = setInterval(() => {
+                draw(); // 每一幀都重新抖動，增加 AI 難度
+                frames++;
+                progressBar.value = (frames / totalFrames) * 40; // 錄製佔 40%
+                statusText.textContent = `錄製中: ${Math.floor((frames/totalFrames)*100)}%`;
+                if (frames >= totalFrames) {
+                    clearInterval(timer);
                     recorder.stop();
                 }
             }, 1000 / fps);
 
             await recordPromise;
 
-            // 3. 使用 FFmpeg 轉碼 WebM 為 MP4
-            statusText.textContent = "轉碼為 MP4 中 (請稍候)...";
+            statusText.textContent = "正在封裝成 MP4 (H.264)...";
             const webmBlob = new Blob(chunks, { type: 'video/webm' });
-            const webmFile = await fetchFile(webmBlob);
+            await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
             
-            await ffmpeg.writeFile('input.webm', webmFile);
-            
-            // 執行轉碼指令
-            // -c:v libx264 確保 MP4 相容性最高
+            // 轉碼
             await ffmpeg.exec(['-i', 'input.webm', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', 'output.mp4']);
             
             const data = await ffmpeg.readFile('output.mp4');
-            const mp4Blob = new Blob([data.buffer], { type: 'video/mp4' });
+            const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
             
-            // 4. 下載
-            const url = URL.createObjectURL(mp4Blob);
-            document.getElementById('downloadLink').href = url;
-            document.getElementById('downloadLink').download = `anti_ai_${Date.now()}.mp4`;
-            document.getElementById('downloadLink').style.display = 'block';
+            const link = document.getElementById('downloadLink');
+            link.href = url;
+            link.download = `protected_video_${Date.now()}.mp4`;
+            link.style.display = 'block';
             
             progressBar.value = 100;
-            statusText.textContent = "MP4 製作成功！";
-            startBtn.disabled = false;
+            statusText.textContent = "完成！可下載影片";
+            inputs.forEach(i => i.disabled = false);
         };
 
         document.getElementById('re-random').onclick = draw;
+        document.getElementById('downloadPNG').onclick = () => {
+            const a = document.createElement('a');
+            a.download = 'protected_image.png';
+            a.href = canvas.toDataURL();
+            a.click();
+        };
     </script>
 </body>
 </html>
