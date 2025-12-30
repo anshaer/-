@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>AI 對抗設計工具 - 圖像遮罩版</title>
+    <title>圖片破壞工具</title>
     <style>
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; display: flex; flex-direction: column; align-items: center; background: #1a1a1a; color: #eee; padding: 20px; }
         .controls { background: #2c2c2c; padding: 20px; border-radius: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; width: 100%; max-width: 750px; border: 1px solid #444; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
@@ -23,20 +23,14 @@
         .btn-random:hover { background: #2c3e50; }
         .btn-download { background: #27ae60; color: white; }
         .btn-download:hover { background: #219150; }
-        .btn-mp4 { background: #e67e22; color: white; }
-        .btn-mp4:hover { background: #d35400; }
-        .btn-mp4:disabled { background: #7f8c8d; cursor: not-allowed; }
         .highlight { color: #f1c40f; font-weight: bold; }
-        progress { width: 100%; height: 20px; margin-top: 10px; }
-        .progress-container { grid-column: span 2; display: none; }
-        .disabled { opacity: 0.5; pointer-events: none; }
     </style>
 </head>
 <body>
 
-    <h2>🎨 AI 視覺對抗排版工具 (Masking Edition)</h2>
+    <h2>🎨 圖片破壞工具 (Masking Edition)</h2>
 
-    <div class="controls" id="controls">
+    <div class="controls">
         <div class="full-width">
             <label>1. 上傳圖片底圖：</label>
             <input type="file" id="upload" accept="image/*">
@@ -44,7 +38,7 @@
         
         <div class="mode-selector full-width">
             <label style="width:100%"><span class="highlight">圖片呈現位置：</span></label>
-            <input type="radio" name="displayPos" id="posBoard" value="board" checked><label for="posBoard">圖片在板面 (符號變透明孔)</label><br>
+            <input type="radio" name="displayPos" id="posBoard" value="board" checked><label for="posBoard">圖片在板面 (符號變透明孔)</label>
             <input type="radio" name="displayPos" id="posHole" value="hole"><label for="posHole">圖片在孔洞 (符號內顯圖)</label>
         </div>
 
@@ -86,21 +80,9 @@
             <label>垂直位置 (Y): <span id="val-posY">50</span>%</label>
             <input type="range" id="posY" min="0" max="100" value="50">
         </div>
-
-        <div class="full-width section-title">MP4 影片設定</div>
-        <div class="full-width">
-            <label>影片秒數: <span id="val-duration">3</span> 秒</label>
-            <input type="range" id="duration" min="1" max="10" step="0.5" value="3">
-        </div>
         
         <button id="re-random" class="btn-random">重新打亂隨機位移</button>
         <button id="download" class="btn-download">下載干擾設計稿 (PNG)</button>
-        <button id="download-mp4" class="btn-mp4">製作並下載影片 (MP4)</button>
-
-        <div class="progress-container" id="progressContainer">
-            <label>製作進度：</label>
-            <progress id="progressBar" value="0" max="100"></progress>
-        </div>
     </div>
 
     <canvas id="canvas"></canvas>
@@ -109,48 +91,41 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const upload = document.getElementById('upload');
-        const controlsDiv = document.getElementById('controls');
-        const progressContainer = document.getElementById('progressContainer');
-        const progressBar = document.getElementById('progressBar');
         
-        const controls = ['radius', 'spacing', 'fontSize', 'posX', 'posY', 'fixedColorPicker', 'textColor', 'overlayText', 'duration'];
+        const controls = ['radius', 'spacing', 'fontSize', 'posX', 'posY', 'fixedColorPicker', 'textColor', 'overlayText'];
         const shapes = ['■','●','✖','⛰︎','⬆︎','⬇︎','⬅︎','➡︎','◀︎','▶︎','✚','✦','♥','♣','♦','♠','❋','❈','⚡︎'];
         let img = new Image();
-        let isRecording = false;
-        let startTime = 0;
 
         upload.addEventListener('change', (e) => {
-            if (isRecording) return;
             const reader = new FileReader();
             reader.onload = (f) => {
                 img.onload = () => {
                     canvas.width = img.width;
                     canvas.height = img.height;
-                    drawFullDesign();
+                    draw();
                 };
                 img.src = f.target.result;
             };
-            if (e.target.files[0]) reader.readAsDataURL(e.target.files[0]);
+            reader.readAsDataURL(e.target.files[0]);
         });
 
         controls.forEach(id => {
-            const el = document.getElementById(id);
-            el.addEventListener('input', () => {
-                if (isRecording) return;
+            document.getElementById(id).addEventListener('input', () => {
                 const span = document.getElementById(`val-${id}`);
-                if (span) span.textContent = el.value;
-                if (img.src && id !== 'duration') drawFullDesign();
+                if (span) span.textContent = document.getElementById(id).value;
+                if (img.src) draw();
             });
         });
 
-        document.getElementsByName('mode').forEach(r => r.onchange = () => { if(img.src && !isRecording) drawFullDesign(); });
-        document.getElementsByName('displayPos').forEach(r => r.onchange = () => { if(img.src && !isRecording) drawFullDesign(); });
-        document.getElementById('re-random').onclick = () => { if(img.src && !isRecording) drawFullDesign(); };
+        document.getElementsByName('mode').forEach(r => r.onchange = () => { if(img.src) draw(); });
+        document.getElementsByName('displayPos').forEach(r => r.onchange = () => { if(img.src) draw(); });
+        document.getElementById('re-random').onclick = () => { if(img.src) draw(); };
 
         function getRandomColor() {
             return `rgb(${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)})`;
         }
 
+        // 繪製符號層的封裝函數
         function drawSymbols(sRadius, sSpacing, mode, isMaskMode) {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -166,11 +141,10 @@
                     ctx.rotate(Math.random() * Math.PI * 2);
                     
                     if (isMaskMode) {
-                        ctx.fillStyle = 'black';
+                        ctx.fillStyle = 'black'; // 遮罩模式下顏色不重要
                     } else {
                         if (mode === 'random') ctx.fillStyle = getRandomColor();
                         else if (mode === 'fixed') ctx.fillStyle = document.getElementById('fixedColorPicker').value;
-                        else ctx.fillStyle = 'white';
                     }
                     
                     ctx.fillText(shapes[Math.floor(Math.random()*shapes.length)], 0, 0);
@@ -179,7 +153,7 @@
             }
         }
 
-        function drawFullDesign() {
+        function draw() {
             if (!img.src) return;
             const sRadius = parseInt(document.getElementById('radius').value);
             const sSpacing = parseInt(document.getElementById('spacing').value);
@@ -197,6 +171,7 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             if (displayPos === 'board') {
+                // --- 傳統模式：圖片在底座 ---
                 ctx.globalCompositeOperation = 'source-over';
                 ctx.drawImage(img, 0, 0);
 
@@ -208,13 +183,17 @@
                 drawSymbols(sRadius, sSpacing, mode, false);
 
             } else {
+                // --- 新模式：圖片只顯示在孔洞內 ---
+                // 1. 先畫符號（作為形狀載體）
                 ctx.globalCompositeOperation = 'source-over';
                 drawSymbols(sRadius, sSpacing, 'fixed', true);
 
+                // 2. 使用 source-in 模式畫圖片，圖片只會出現在有符號的地方
                 ctx.globalCompositeOperation = 'source-in';
                 ctx.drawImage(img, 0, 0);
             }
 
+            // --- 第三層：文字防護層 ---
             ctx.globalCompositeOperation = 'source-over';
             if (txt) {
                 ctx.font = `bold ${fSize}px sans-serif`;
@@ -228,71 +207,12 @@
             }
         }
 
-        // PNG 下載
         document.getElementById('download').onclick = () => {
-            if (isRecording) return alert('請等待影片製作完成');
             if (!img.src) return alert('請先上傳圖片');
             const link = document.createElement('a');
             link.download = 'ai-protected-design.png';
             link.href = canvas.toDataURL('image/png');
             link.click();
-        };
-
-        // MP4 製作（修正長度問題）
-        document.getElementById('download-mp4').onclick = async () => {
-            if (!img.src) return alert('請先上傳圖片');
-            if (isRecording) return;
-
-            isRecording = true;
-            controlsDiv.classList.add('disabled');
-            progressContainer.style.display = 'block';
-            progressBar.value = 0;
-
-            const durationSec = parseFloat(document.getElementById('duration').value);
-            const fps = 30;
-            const stream = canvas.captureStream(fps);
-            const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
-            const chunks = [];
-
-            mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(chunks, { type: 'video/webm' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `ai-protected-full-${durationSec}s.mp4`;
-                a.click();
-                URL.revokeObjectURL(url);
-
-                isRecording = false;
-                controlsDiv.classList.remove('disabled');
-                progressContainer.style.display = 'none';
-            };
-
-            mediaRecorder.start();
-            startTime = performance.now();
-
-            // 精準定時停止錄製
-            setTimeout(() => {
-                mediaRecorder.stop();
-            }, durationSec * 1000);
-
-            // 持續重繪完整畫面 + 更新進度條
-            const render = () => {
-                if (!isRecording) return;
-
-                drawFullDesign();
-
-                const elapsed = (performance.now() - startTime) / 1000;
-                const progress = Math.min(elapsed / durationSec, 1);
-                progressBar.value = progress * 100;
-
-                if (progress < 1) {
-                    requestAnimationFrame(render);
-                }
-            };
-
-            render();
         };
     </script>
 </body>
