@@ -2,41 +2,73 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>AI 對抗工作站 - 功能全修復版</title>
+    <title>AI 對抗設計工具 - 影片與進度條版</title>
     <script src="coi-serviceworker.js"></script>
     <style>
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; display: flex; flex-direction: column; align-items: center; background: #1a1a1a; color: #eee; padding: 20px; }
-        .controls, .video-controls { background: #2c2c2c; padding: 20px; border-radius: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; width: 100%; max-width: 800px; border: 1px solid #444; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .controls { background: #2c2c2c; padding: 20px; border-radius: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; width: 100%; max-width: 750px; border: 1px solid #444; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; }
         .full-width { grid-column: span 2; }
         .section-title { font-weight: bold; color: #9b59b6; margin-top: 10px; border-bottom: 1px solid #444; padding-bottom: 5px; }
-        canvas { max-width: 95vw; border: 2px solid #555; background-image: linear-gradient(45deg, #222 25%, transparent 25%), linear-gradient(-45deg, #222 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #222 75%), linear-gradient(-45deg, transparent 75%, #222 75%); background-size: 20px 20px; }
+        .mode-selector { background: #3d3d3d; padding: 15px; border-radius: 8px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
+        canvas { 
+            max-width: 95vw; border: 2px solid #555;
+            background-image: linear-gradient(45deg, #222 25%, transparent 25%), linear-gradient(-45deg, #222 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #222 75%), linear-gradient(-45deg, transparent 75%, #222 75%);
+            background-size: 20px 20px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
         input[type="range"] { width: 100%; cursor: pointer; }
         input[type="text"] { width: 100%; padding: 10px; box-sizing: border-box; background: #444; border: 1px solid #666; color: white; border-radius: 6px; }
         label { font-size: 13px; color: #ccc; display: block; margin-bottom: 5px; }
         button { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
         .btn-random { background: #34495e; color: white; }
+        .btn-random:hover { background: #2c3e50; }
         .btn-download { background: #27ae60; color: white; }
-        .btn-video { background: #e74c3c; color: white; grid-column: span 2; }
-        button:disabled { background: #555 !important; opacity: 0.6; cursor: not-allowed; }
-        progress { width: 100%; height: 20px; accent-color: #3498db; }
-        #statusText { color: #3498db; font-weight: bold; text-align: center; width: 100%; }
+        .btn-download-mp4 { background: #3498db; color: white; margin-top: 10px; }
+        .btn-download:disabled, .btn-download-mp4:disabled { background: #555; cursor: not-allowed; }
+
+        /* 進度條遮罩 */
+        #progress-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); display: none;
+            flex-direction: column; justify-content: center; align-items: center;
+            z-index: 1000;
+        }
+        .progress-container { width: 300px; background: #444; border-radius: 20px; overflow: hidden; }
+        #progress-bar { width: 0%; height: 20px; background: #9b59b6; transition: width 0.1s; }
+        .progress-text { margin-top: 10px; font-size: 18px; }
+
+        .highlight { color: #f1c40f; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h2>🎨 AI 視覺對抗工作站 (功能修復版)</h2>
+    <h2>🎨 AI 視覺對抗工具 (Video & Masking)</h2>
 
-    <div id="uiContainer" class="controls">
+    <div id="progress-overlay">
+        <div class="progress-text">影片製作中... <span id="progress-percent">0%</span></div>
+        <div class="progress-container">
+            <div id="progress-bar"></div>
+        </div>
+        <p style="color: #888; font-size: 12px; margin-top: 10px;">請勿關閉視窗，這可能需要幾十秒</p>
+    </div>
+
+    <div class="controls" id="main-controls">
         <div class="full-width">
-            <label>1. 上傳底圖：</label>
+            <label>1. 上傳圖片底圖：</label>
             <input type="file" id="upload" accept="image/*">
         </div>
         
-        <div class="full-width" style="background:#3d3d3d; padding:10px; border-radius:8px;">
-            <label>符號顏色模式：</label>
-            <input type="radio" name="mode" value="hole" checked> 透明挖孔
-            <input type="radio" name="mode" value="random"> 隨機顏色
-            <input type="radio" name="mode" value="fixed"> 指定顏色
+        <div class="mode-selector full-width">
+            <label style="width:100%"><span class="highlight">圖片呈現位置：</span></label>
+            <input type="radio" name="displayPos" id="posBoard" value="board" checked><label for="posBoard">圖片在板面</label>
+            <input type="radio" name="displayPos" id="posHole" value="hole"><label for="posHole">圖片在孔洞</label>
+        </div>
+
+        <div class="mode-selector full-width">
+            <label style="width:100%">符號顏色模式：</label>
+            <input type="radio" name="mode" id="modeHole" value="hole" checked><label for="modeHole">透明挖孔</label>
+            <input type="radio" name="mode" id="modeRandom" value="random"><label for="modeRandom">隨機顏色</label>
+            <input type="radio" name="mode" id="modeFixed" value="fixed"><label for="modeFixed">指定顏色</label>
             <input type="color" id="fixedColorPicker" value="#ffffff">
         </div>
 
@@ -49,8 +81,11 @@
             <input type="range" id="spacing" min="15" max="150" value="40">
         </div>
 
-        <div class="full-width section-title">文字層設定</div>
-        <input type="text" id="overlayText" class="full-width" placeholder="輸入文字...">
+        <div class="full-width section-title">文字層強化設定</div>
+        <div class="full-width">
+            <label>輸入干擾文字：</label>
+            <input type="text" id="overlayText" placeholder="輸入文字以中斷 AI 語義識別...">
+        </div>
         <div>
             <label>文字大小: <span id="val-fontSize">80</span></label>
             <input type="range" id="fontSize" min="20" max="400" value="80">
@@ -60,185 +95,168 @@
             <input type="color" id="textColor" value="#ffffff" style="width:100%">
         </div>
         
-        <button id="re-random" class="btn-random">打亂位置 (重繪)</button>
-        <button id="downloadPNG" class="btn-download">下載目前圖片 (PNG)</button>
+        <button id="re-random" class="btn-random">重新打亂隨機位移</button>
+        <button id="download" class="btn-download">下載靜態 PNG</button>
+        <button id="make-mp4" class="btn-download-mp4 full-width">製作 3秒 擾亂 MP4 影片</button>
     </div>
 
     <canvas id="canvas"></canvas>
 
-    <div class="video-controls">
-        <div class="full-width section-title">🎬 影片生成 (MP4)</div>
-        <div class="full-width">
-            <label>時長: <span id="val-duration">5</span> 秒</label>
-            <input type="range" id="duration" min="1" max="15" value="5">
-        </div>
-        <button id="startRecord" class="btn-video" disabled>開始生成 MP4 影片</button>
-        <div id="progressContainer" class="full-width" style="display:none; text-align:center;">
-            <progress id="videoProgress" value="0" max="100"></progress>
-            <p id="statusText">正在初始化...</p>
-        </div>
-        <a id="downloadLink" style="display:none;" class="full-width">
-            <button class="btn-download" style="width:100%">💾 下載 MP4 影片</button>
-        </a>
-    </div>
-
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.7/dist/umd/ffmpeg.umd.js"></script>
-    <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
 
     <script>
-        const { FFmpeg } = window.FFmpeg;
-        const { fetchFile } = window.FFmpegUtil;
-        let ffmpeg = null;
-
+        const { createFFmpeg, fetchFile } = FFmpeg;
+        const ffmpeg = createFFmpeg({ log: false });
+        
         const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const ctx = canvas.getContext('2d');
         const upload = document.getElementById('upload');
-        const shapes = ['■','●','✖','⛰︎','✚','✦','♥','♠','❋','❈','⚡︎','✨'];
+        const overlay = document.getElementById('progress-overlay');
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercent = document.getElementById('progress-percent');
+        
+        const shapes = ['■','●','✖','⛰︎','⬆︎','⬇︎','⬅︎','➡︎','◀︎','▶︎','✚','✦','♥','♣','♦','♠','❋','❈','⚡︎'];
         let img = new Image();
 
-        // --- 核心繪圖函式 ---
-        function draw() {
-            if (!img.src) return;
-            const radius = parseInt(document.getElementById('radius').value);
-            const spacing = parseInt(document.getElementById('spacing').value);
-            const fontSize = parseInt(document.getElementById('fontSize').value);
-            const txt = document.getElementById('overlayText').value;
-            const fixedColor = document.getElementById('fixedColorPicker').value;
-            const txtColor = document.getElementById('textColor').value;
-            
-            let mode = 'hole';
-            document.getElementsByName('mode').forEach(r => { if(r.checked) mode = r.value; });
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
-
-            // 1. 符號層
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.font = `${radius}px sans-serif`;
-
-            if (mode === 'hole') ctx.globalCompositeOperation = 'destination-out';
-            else ctx.globalCompositeOperation = 'source-over';
-
-            for (let y = -spacing; y < canvas.height + spacing; y += spacing) {
-                for (let x = -spacing; x < canvas.width + spacing; x += spacing) {
-                    ctx.save();
-                    const jitter = spacing * 0.4;
-                    ctx.translate(x + (Math.random()-0.5)*jitter, y + (Math.random()-0.5)*jitter);
-                    ctx.rotate(Math.random() * Math.PI * 2);
-                    
-                    if (mode === 'random') ctx.fillStyle = `rgb(${Math.random()*255},${Math.random()*255},${Math.random()*255})`;
-                    else ctx.fillStyle = fixedColor;
-                    
-                    ctx.fillText(shapes[Math.floor(Math.random()*shapes.length)], 0, 0);
-                    ctx.restore();
-                }
-            }
-
-            // 2. 文字層
-            ctx.globalCompositeOperation = 'source-over';
-            if (txt) {
-                ctx.font = `bold ${fontSize}px sans-serif`;
-                ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-                ctx.lineWidth = fontSize / 8;
-                ctx.strokeText(txt, canvas.width/2, canvas.height/2);
-                ctx.fillStyle = txtColor;
-                ctx.fillText(txt, canvas.width/2, canvas.height/2);
-            }
-        }
-
-        // --- 事件綁定 ---
+        // 初始化繪製與事件
         upload.addEventListener('change', (e) => {
             const reader = new FileReader();
             reader.onload = (f) => {
                 img.onload = () => {
-                    canvas.width = img.width;
-                    canvas.height = img.height;
+                    // 為了 MP4 兼容性，寬高強制轉為偶數
+                    canvas.width = img.width % 2 === 0 ? img.width : img.width - 1;
+                    canvas.height = img.height % 2 === 0 ? img.height : img.height - 1;
                     draw();
-                    document.getElementById('startRecord').disabled = false;
                 };
                 img.src = f.target.result;
             };
             reader.readAsDataURL(e.target.files[0]);
         });
 
-        // 綁定所有 input 變動
-        document.querySelectorAll('input').forEach(input => {
-            input.addEventListener('input', () => {
-                const span = document.getElementById(`val-${input.id}`);
-                if (span) span.textContent = input.value;
+        // 通用繪製邏輯
+        function drawSymbols(sRadius, sSpacing, mode, isMaskMode) {
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = `${sRadius}px sans-serif`;
+
+            for (let y = -sSpacing; y < canvas.height + sSpacing; y += sSpacing) {
+                for (let x = -sSpacing; x < canvas.width + sSpacing; x += sSpacing) {
+                    ctx.save();
+                    const jitter = sSpacing * 0.35;
+                    const dx = (Math.random() - 0.5) * jitter;
+                    const dy = (Math.random() - 0.5) * jitter;
+                    ctx.translate(x + dx, y + dy);
+                    ctx.rotate(Math.random() * Math.PI * 2);
+                    
+                    if (isMaskMode) {
+                        ctx.fillStyle = 'black';
+                    } else {
+                        if (mode === 'random') ctx.fillStyle = `rgb(${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)})`;
+                        else if (mode === 'fixed') ctx.fillStyle = document.getElementById('fixedColorPicker').value;
+                    }
+                    
+                    ctx.fillText(shapes[Math.floor(Math.random()*shapes.length)], 0, 0);
+                    ctx.restore();
+                }
+            }
+        }
+
+        function draw() {
+            if (!img.src) return;
+            const sRadius = parseInt(document.getElementById('radius').value);
+            const sSpacing = parseInt(document.getElementById('spacing').value);
+            const fSize = parseInt(document.getElementById('fontSize').value);
+            const txt = document.getElementById('overlayText').value;
+            
+            let mode = document.querySelector('input[name="mode"]:checked').value;
+            let displayPos = document.querySelector('input[name="displayPos"]:checked').value;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (displayPos === 'board') {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                if (mode === 'hole') ctx.globalCompositeOperation = 'destination-out';
+                drawSymbols(sRadius, sSpacing, mode, false);
+            } else {
+                ctx.globalCompositeOperation = 'source-over';
+                drawSymbols(sRadius, sSpacing, 'fixed', true);
+                ctx.globalCompositeOperation = 'source-in';
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            }
+
+            ctx.globalCompositeOperation = 'source-over';
+            if (txt) {
+                ctx.font = `bold ${fSize}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+                ctx.lineWidth = fSize / 8;
+                ctx.strokeText(txt, canvas.width / 2, canvas.height / 2);
+                ctx.fillStyle = document.getElementById('textColor').value;
+                ctx.fillText(txt, canvas.width / 2, canvas.height / 2);
+            }
+        }
+
+        // --- MP4 製作邏輯 ---
+        document.getElementById('make-mp4').onclick = async () => {
+            if (!img.src) return alert('請先上傳圖片');
+            
+            // 鎖定 UI
+            overlay.style.display = 'flex';
+            const fps = 10;
+            const duration = 3;
+            const totalFrames = fps * duration;
+
+            if (!ffmpeg.isLoaded()) await ffmpeg.load();
+
+            for (let i = 0; i < totalFrames; i++) {
+                draw(); // 每一幀都重新生成隨機位移
+                const imageData = canvas.toDataURL('image/jpeg', 0.8);
+                const name = `frame${i.toString().padStart(3, '0')}.jpg`;
+                ffmpeg.FS('writeFile', name, await fetchFile(imageData));
+                
+                // 更新進度 (前 50% 為擷取)
+                const p = Math.floor((i / totalFrames) * 50);
+                progressBar.style.width = `${p}%`;
+                progressPercent.textContent = `${p}%`;
+            }
+
+            // FFmpeg 合成
+            ffmpeg.setProgress(({ ratio }) => {
+                const p = 50 + Math.floor(ratio * 50);
+                progressBar.style.width = `${p}%`;
+                progressPercent.textContent = `${p}%`;
+            });
+
+            await ffmpeg.run('-framerate', `${fps}`, '-i', 'frame%03d.jpg', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', 'out.mp4');
+
+            const data = ffmpeg.FS('readFile', 'out.mp4');
+            const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+            
+            const link = document.createElement('a');
+            link.href = videoUrl;
+            link.download = 'ai-protected-video.mp4';
+            link.click();
+
+            // 清理與解鎖
+            overlay.style.display = 'none';
+            progressBar.style.width = '0%';
+        };
+
+        // UI 聯動
+        ['radius', 'spacing', 'fontSize', 'fixedColorPicker', 'textColor', 'overlayText'].forEach(id => {
+            document.getElementById(id).addEventListener('input', () => {
+                if (document.getElementById(`val-${id}`)) document.getElementById(`val-${id}`).textContent = document.getElementById(id).value;
                 draw();
             });
         });
-
         document.getElementById('re-random').onclick = draw;
-
-        // --- MP4 生成邏輯 ---
-        const startBtn = document.getElementById('startRecord');
-        const statusText = document.getElementById('statusText');
-        const progressBar = document.getElementById('videoProgress');
-
-        startBtn.onclick = async () => {
-            const duration = parseInt(document.getElementById('duration').value);
-            const fps = 24;
-            const totalFrames = duration * fps;
-            
-            document.querySelectorAll('input, button').forEach(i => i.disabled = true);
-            document.getElementById('progressContainer').style.display = 'block';
-            document.getElementById('downloadLink').style.display = 'none';
-
-            if (!ffmpeg) {
-                statusText.textContent = "載入 FFmpeg 引擎...";
-                ffmpeg = new FFmpeg();
-                await ffmpeg.load({
-                    coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.4/dist/umd/ffmpeg-core.js',
-                    wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.4/dist/umd/ffmpeg-core.wasm',
-                });
-            }
-
-            const chunks = [];
-            const stream = canvas.captureStream(fps);
-            const recorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
-            recorder.ondataavailable = e => chunks.push(e.data);
-            const recordPromise = new Promise(res => recorder.onstop = res);
-            
-            recorder.start();
-            let frames = 0;
-            const timer = setInterval(() => {
-                draw();
-                frames++;
-                progressBar.value = (frames / totalFrames) * 50;
-                statusText.textContent = `錄製中: ${Math.floor((frames/totalFrames)*100)}%`;
-                if (frames >= totalFrames) {
-                    clearInterval(timer);
-                    recorder.stop();
-                }
-            }, 1000 / fps);
-
-            await recordPromise;
-
-            statusText.textContent = "轉碼 MP4 中...";
-            await ffmpeg.writeFile('input.webm', await fetchFile(new Blob(chunks, { type: 'video/webm' })));
-            await ffmpeg.exec(['-i', 'input.webm', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', 'output.mp4']);
-            
-            const data = await ffmpeg.readFile('output.mp4');
-            const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
-            
-            const link = document.getElementById('downloadLink');
-            link.href = url;
-            link.download = `protected_${Date.now()}.mp4`;
-            link.style.display = 'block';
-            
-            progressBar.value = 100;
-            statusText.textContent = "完成！";
-            document.querySelectorAll('input, button').forEach(i => i.disabled = false);
-        };
-
-        document.getElementById('downloadPNG').onclick = () => {
-            const a = document.createElement('a');
-            a.download = 'protected_img.png';
-            a.href = canvas.toDataURL();
-            a.click();
+        document.getElementById('download').onclick = () => {
+            const link = document.createElement('a');
+            link.download = 'design.png';
+            link.href = canvas.toDataURL();
+            link.click();
         };
     </script>
 </body>
